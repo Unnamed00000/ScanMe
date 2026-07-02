@@ -17,6 +17,12 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
+import {
+  getDownloadURL,
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+} from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCTbzJSHGxllXnFBH8CrOlfRe0xB_1tMeQ',
@@ -28,17 +34,21 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-4Q5Q7GD0SY',
 };
 
-export const isFirebaseConfigured = Boolean(
+const forceDemo = import.meta.env.VITE_SCANME_DEMO === 'true';
+
+export const isFirebaseConfigured = !forceDemo && Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId,
 );
 
 let auth;
 let db;
+let storage;
 
 if (isFirebaseConfigured) {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app);
 }
 
 const LOCAL_KEY = 'scanme_profiles_v1';
@@ -79,7 +89,7 @@ export async function logout() {
 
 export async function listProfiles() {
   if (!isFirebaseConfigured) {
-    return Object.values(readLocal()).sort((a, b) =>
+    return Object.entries(readLocal()).filter(([key]) => key !== '__themes').map(([, value]) => value).sort((a, b) =>
       String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')),
     );
   }
@@ -130,4 +140,36 @@ export async function removeProfile(slug) {
     return;
   }
   await deleteDoc(doc(db, 'profiles', slug));
+}
+
+export async function listThemes() {
+  if (!isFirebaseConfigured) {
+    return Object.values(readLocal().__themes || {});
+  }
+  const result = await getDocs(query(collection(db, 'themes'), orderBy('createdAt', 'desc')));
+  return result.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+export async function uploadTheme({ id, name, blob }) {
+  const now = new Date().toISOString();
+  if (!isFirebaseConfigured) {
+    const data = readLocal();
+    const imageUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => resolve(reader.result));
+      reader.readAsDataURL(blob);
+    });
+    data.__themes = data.__themes || {};
+    data.__themes[id] = { id, name, imageUrl, createdAt: now };
+    writeLocal(data);
+    return data.__themes[id];
+  }
+
+  const path = `themes/${id}-${Date.now()}.webp`;
+  const fileRef = storageRef(storage, path);
+  await uploadBytes(fileRef, blob, { contentType: 'image/webp', cacheControl: 'public,max-age=31536000' });
+  const imageUrl = await getDownloadURL(fileRef);
+  const theme = { id, name, imageUrl, storagePath: path, createdAt: now };
+  await setDoc(doc(db, 'themes', id), { ...theme, createdAt: serverTimestamp() });
+  return theme;
 }

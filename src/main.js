@@ -4,10 +4,12 @@ import {
   getProfile,
   isFirebaseConfigured,
   listProfiles,
+  listThemes,
   login,
   logout,
   removeProfile,
   saveProfile,
+  uploadTheme,
   watchAuth,
 } from './store.js';
 import { escapeHtml, getInitials, icons, profileUrl, safeUrl, slugify, toast } from './ui.js';
@@ -42,7 +44,108 @@ const emptyProfile = () => ({
   email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: 'Связаться',
+  accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
+
+function toDateTimeLocal(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function publicationState(profile) {
+  if (!profile.published) return { id: 'draft', label: 'Черновик' };
+  if (profile.accessMode === 'timed' && profile.expiresAt && new Date(profile.expiresAt).getTime() <= Date.now()) {
+    return { id: 'expired', label: 'Срок истёк' };
+  }
+  return { id: 'live', label: profile.accessMode === 'timed' ? 'По таймеру' : 'Опубликована' };
+}
+
+function themeCard(theme, selectedTheme) {
+  const custom = Boolean(theme.imageUrl);
+  const style = custom ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}')"` : '';
+  return `<label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>`;
+}
+
+function publicThemeStyle(profile) {
+  return profile.themeImageUrl ? ` style="--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')"` : '';
+}
+
+function setPublicViewport(enabled) {
+  const viewport = document.querySelector('meta[name="viewport"]');
+  viewport?.setAttribute('content', enabled
+    ? 'width=1180, initial-scale=1, viewport-fit=cover'
+    : 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+  document.body.classList.toggle('public-desktop', enabled);
+}
+
+async function resizeThemeImage(file) {
+  if (!file.type.startsWith('image/')) throw new Error('Выберите изображение JPG, PNG или WebP.');
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.addEventListener('load', () => resolve(element));
+    element.addEventListener('error', () => reject(new Error('Не удалось прочитать изображение.')));
+    element.src = URL.createObjectURL(file);
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 1600;
+  const context = canvas.getContext('2d');
+  const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+  URL.revokeObjectURL(image.src);
+  return new Promise((resolve, reject) => canvas.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Не удалось подготовить изображение.')),
+    'image/webp',
+    0.84,
+  ));
+}
+
+function showThemeUploadModal(file, onUploaded) {
+  const previewUrl = URL.createObjectURL(file);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  const initialName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  backdrop.innerHTML = `
+    <form class="theme-upload-modal" id="theme-upload-form">
+      <button class="modal-close" type="button" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Новое оформление</p><h2>Добавить фон</h2>
+      <div class="theme-upload-preview" style="background-image:url('${escapeHtml(previewUrl)}')"></div>
+      <label class="field"><span>Название оформления</span><input name="themeName" required maxlength="60" value="${escapeHtml(initialName)}" placeholder="Например, Красная Toyota"></label>
+      <p class="theme-upload-hint">Изображение автоматически обрежется до 1200 × 1600 и станет одинакового размера с другими оформлениями.</p>
+      <button class="button button--primary button--wide" type="submit">${icons.plus} Добавить оформление</button>
+    </form>`;
+  document.body.append(backdrop);
+  const close = () => {
+    URL.revokeObjectURL(previewUrl);
+    backdrop.remove();
+  };
+  backdrop.querySelector('.modal-close').addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
+  backdrop.querySelector('#theme-upload-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    button.textContent = 'Подготавливаем и загружаем…';
+    try {
+      const name = new FormData(event.currentTarget).get('themeName').trim();
+      const id = `custom-${slugify(name) || 'theme'}-${Date.now().toString(36)}`;
+      const blob = await resizeThemeImage(file);
+      const theme = await uploadTheme({ id, name, blob });
+      onUploaded(theme);
+      close();
+      toast('Оформление добавлено');
+    } catch (error) {
+      toast(error.message, 'error');
+      button.disabled = false;
+      button.innerHTML = `${icons.plus} Добавить оформление`;
+    }
+  });
+}
 
 function route() {
   const raw = window.location.hash.replace(/^#\/?/, '');
@@ -97,11 +200,14 @@ async function renderAdmin() {
       const secondary = isAnnouncement
         ? [profile.category, profile.price].filter(Boolean).join(' · ')
         : [profile.title, profile.company].filter(Boolean).join(' · ');
+      const state = publicationState(profile);
+      const searchText = [primary, secondary, profile.slug, profile.phone, profile.email, profile.contactName, profile.address]
+        .filter(Boolean).join(' ').toLocaleLowerCase('ru');
       return `
-      <article class="profile-row">
+      <article class="profile-row" data-search="${escapeHtml(searchText)}">
         <div class="avatar avatar--small ${imageUrl ? 'has-photo' : ''}" ${imageUrl ? `style="background-image:url('${escapeHtml(imageUrl)}')"` : ''}>${imageUrl ? '' : escapeHtml(getInitials(primary))}</div>
         <div class="profile-row__person"><strong>${escapeHtml(primary || 'Без названия')}</strong><span><em class="content-badge">${isAnnouncement ? 'Объявление' : 'Визитка'}</em>${escapeHtml(secondary || (isAnnouncement ? 'Категория не указана' : 'Должность не указана'))}</span></div>
-        <span class="status ${profile.published ? 'status--live' : ''}"><i></i>${profile.published ? 'Опубликована' : 'Черновик'}</span>
+        <span class="status status--${state.id}"><i></i>${state.label}</span>
         <code>/${escapeHtml(profile.slug)}</code>
         <div class="profile-row__actions">
           <a class="icon-button" href="#/p/${encodeURIComponent(profile.slug)}" target="_blank" title="Открыть">${icons.globe}</a>
@@ -115,10 +221,24 @@ async function renderAdmin() {
     app.innerHTML = adminShell(`
       <main class="admin-content">
         <div class="page-heading"><div><p class="eyebrow">Визитки и объявления</p><h1>Публикации <span>${profiles.length}</span></h1></div><a class="button button--primary" href="#/edit/new">${icons.plus} Создать</a></div>
+        ${profiles.length ? `<div class="profiles-search"><span>${icons.globe}</span><input id="profiles-search" type="search" placeholder="Найти по имени, названию, телефону или адресу…" autocomplete="off"><small id="search-count">${profiles.length} публикаций</small></div>` : ''}
         <section class="profiles-panel"><div class="profiles-panel__head"><span>Профиль</span><span>Статус</span><span>Адрес</span><span></span></div><div class="profiles-list">${rows}</div></section>
+        <div class="search-empty is-hidden" id="search-empty"><h2>Ничего не найдено</h2><p>Попробуйте изменить запрос.</p></div>
       </main>`, 'profiles');
     bindAdminShell();
     document.querySelectorAll('.qr-button').forEach((button) => button.addEventListener('click', () => showQrModal(button.dataset.slug)));
+    document.querySelector('#profiles-search')?.addEventListener('input', (event) => {
+      const query = event.currentTarget.value.trim().toLocaleLowerCase('ru');
+      let visible = 0;
+      document.querySelectorAll('.profile-row').forEach((row) => {
+        const matches = !query || row.dataset.search.includes(query);
+        row.classList.toggle('is-filtered-out', !matches);
+        if (matches) visible += 1;
+      });
+      document.querySelector('#search-count').textContent = `${visible} из ${profiles.length}`;
+      document.querySelector('#search-empty').classList.toggle('is-hidden', visible !== 0);
+      document.querySelector('.profiles-panel').classList.toggle('is-hidden', visible === 0);
+    });
   } catch (error) {
     renderError('Не удалось загрузить публикации', error.message, '#/admin');
   }
@@ -162,9 +282,19 @@ async function renderEditor(slug) {
   const existing = isNew ? emptyProfile() : await getProfile(slug);
   if (!existing) return renderError('Публикация не найдена', 'Возможно, она была удалена.', '#/admin');
   const profile = { ...emptyProfile(), ...existing };
+  let customThemes = [];
+  try {
+    customThemes = await listThemes();
+  } catch (error) {
+    console.warn('Custom themes are unavailable', error);
+  }
+  if (profile.themeImageUrl && !customThemes.some((theme) => theme.id === profile.theme)) {
+    customThemes.unshift({ id: profile.theme, name: 'Загруженное оформление', imageUrl: profile.themeImageUrl });
+  }
+  const allThemes = [...themeOptions, ...customThemes];
   const input = (name, label, options = {}) => `
     <label class="field ${options.wide ? 'field--wide' : ''} ${options.className || ''}"><span>${label}${options.required ? ' *' : ''}</span>
-      <input name="${name}" value="${escapeHtml(profile[name] || '')}" ${options.required ? 'required' : ''} type="${options.type || 'text'}" placeholder="${escapeHtml(options.placeholder || '')}">
+      <input name="${name}" value="${escapeHtml(options.value ?? profile[name] ?? '')}" ${options.required ? 'required' : ''} type="${options.type || 'text'}" placeholder="${escapeHtml(options.placeholder || '')}">
       ${options.hint ? `<small>${options.hint}</small>` : ''}
     </label>`;
 
@@ -213,7 +343,20 @@ async function renderEditor(slug) {
         <section class="form-card">
           <div class="section-heading"><span>03</span><div><h2>Оформление</h2><p>Выберите цвет, настроение, животное, пейзаж или автомобиль.</p></div></div>
           <div class="theme-picker">
-            ${themeOptions.map((theme) => `<label class="theme-option theme-option--${theme.id}"><input type="radio" name="theme" value="${theme.id}" ${profile.theme === theme.id ? 'checked' : ''}><span><i></i><b>${theme.name}</b></span></label>`).join('')}
+            ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
+            <button class="theme-add" id="add-theme-button" type="button"><span>${icons.plus}</span><b>Добавить оформление</b><small>Фото обрежется автоматически</small></button>
+          </div>
+          <input class="visually-hidden" id="theme-file-input" type="file" accept="image/jpeg,image/png,image/webp">
+        </section>
+        <section class="form-card">
+          <div class="section-heading"><span>04</span><div><h2>Срок публикации</h2><p>Для друзей можно оставить навсегда, для платных заказов — установить точное время отключения.</p></div></div>
+          <div class="content-type-picker access-mode-picker">
+            <label><input type="radio" name="accessMode" value="unlimited" ${profile.accessMode !== 'timed' ? 'checked' : ''}><span>${icons.user}<b>Без ограничений</b><small>Работает, пока вы сами не выключите</small></span></label>
+            <label><input type="radio" name="accessMode" value="timed" ${profile.accessMode === 'timed' ? 'checked' : ''}><span>${icons.globe}<b>По таймеру</b><small>Автоматически отключится в указанное время</small></span></label>
+          </div>
+          <div class="fields-grid timed-access-fields">
+            ${input('accessPrice', 'Стоимость размещения', { placeholder: 'Например, 200 DKK' })}
+            ${input('expiresAt', 'Отключить дату и время', { type: 'datetime-local', value: toDateTimeLocal(profile.expiresAt), hint: 'После этого времени страница перестанет открываться' })}
           </div>
           <label class="publish-toggle"><input type="checkbox" name="published" ${profile.published ? 'checked' : ''}><span></span><div><b>Опубликовать</b><small>Страница будет доступна по ссылке и QR-коду</small></div></label>
         </section>
@@ -240,6 +383,29 @@ async function renderEditor(slug) {
   form.querySelectorAll('[name="contentType"]').forEach((radio) => radio.addEventListener('change', syncContentType));
   syncContentType();
 
+  const syncAccessMode = () => {
+    const timed = form.querySelector('[name="accessMode"]:checked')?.value === 'timed';
+    document.querySelector('.timed-access-fields').classList.toggle('is-hidden', !timed);
+    form.querySelector('[name="expiresAt"]').required = timed;
+  };
+  form.querySelectorAll('[name="accessMode"]').forEach((radio) => radio.addEventListener('change', syncAccessMode));
+  syncAccessMode();
+
+  const themeFileInput = document.querySelector('#theme-file-input');
+  document.querySelector('#add-theme-button').addEventListener('click', () => themeFileInput.click());
+  themeFileInput.addEventListener('change', () => {
+    const [file] = themeFileInput.files;
+    if (!file) return;
+    showThemeUploadModal(file, (theme) => {
+      const holder = document.createElement('div');
+      holder.innerHTML = themeCard(theme, theme.id);
+      const option = holder.firstElementChild;
+      document.querySelector('#add-theme-button').before(option);
+      option.querySelector('input').checked = true;
+    });
+    themeFileInput.value = '';
+  });
+
   slugField.addEventListener('input', () => {
     slugTouched = true;
     slugField.value = slugify(slugField.value);
@@ -255,6 +421,16 @@ async function renderEditor(slug) {
     try {
       const formData = new FormData(event.currentTarget);
       const payload = { ...profile, ...Object.fromEntries(formData), slug: slugify(formData.get('slug')), published: formData.has('published') };
+      const selectedTheme = form.querySelector('[name="theme"]:checked');
+      payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+      if (payload.accessMode === 'timed') {
+        if (!payload.expiresAt) throw new Error('Укажите дату и время отключения.');
+        const expiration = new Date(payload.expiresAt);
+        if (Number.isNaN(expiration.getTime())) throw new Error('Укажите корректную дату отключения.');
+        payload.expiresAt = expiration.toISOString();
+      } else {
+        payload.expiresAt = '';
+      }
       if (payload.contentType === 'card' && !payload.fullName.trim()) throw new Error('Укажите имя для визитки.');
       if (payload.contentType === 'announcement' && !payload.announcementTitle.trim()) throw new Error('Укажите заголовок объявления.');
       if (!payload.slug) throw new Error('Укажите корректный адрес страницы.');
@@ -330,7 +506,7 @@ function renderAnnouncement(profile) {
   const owner = profile.contactName || profile.company || 'Автор объявления';
 
   app.innerHTML = `
-    <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')}">
+    <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
       <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ОБЪЯВЛЕНИЕ</span><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></header>
       <section class="announcement-content ${profile.announcementImageUrl ? '' : 'announcement-content--no-image'}">
@@ -365,6 +541,7 @@ async function renderPublic(slug) {
   try {
     const profile = await getProfile(slug);
     if (!profile || !profile.published) return renderNotFound();
+    if (publicationState(profile).id === 'expired') return renderExpired(profile);
     if (profile.contentType === 'announcement') return renderAnnouncement(profile);
     const contacts = [
       ['phone', profile.phone, icons.phone, 'Позвонить'],
@@ -375,7 +552,7 @@ async function renderPublic(slug) {
     ].filter(([, value]) => value);
 
     app.innerHTML = `
-      <main class="public-card theme-${escapeHtml(profile.theme || 'lime')}">
+      <main class="public-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
         <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
         <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></header>
         <section class="identity">
@@ -424,12 +601,18 @@ function renderNotFound() {
   app.innerHTML = `<main class="not-found"><span class="brand-mark">${icons.qr}</span><p class="eyebrow">Ошибка 404</p><h1>Публикация не найдена</h1><p>Страница не существует или пока не опубликована.</p></main>`;
 }
 
+function renderExpired(profile) {
+  const name = profile.contentType === 'announcement' ? profile.announcementTitle : profile.fullName;
+  app.innerHTML = `<main class="not-found"><span class="brand-mark">${icons.qr}</span><p class="eyebrow">Срок публикации завершён</p><h1>Страница временно отключена</h1><p>${escapeHtml(name || 'Эта публикация')} снова появится после продления владельцем.</p></main>`;
+}
+
 function renderError(title, message, backHref) {
   app.innerHTML = `<main class="not-found"><span class="brand-mark">!</span><p class="eyebrow">Что-то пошло не так</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p>${backHref ? `<a class="button button--primary" href="${backHref}">Вернуться</a>` : ''}</main>`;
 }
 
 async function render() {
   const { page, value } = route();
+  setPublicViewport(page === 'p');
   document.title = 'ScanMe — цифровые визитки';
   if (page === 'p') return renderPublic(value);
   if (page === 'edit') return renderEditor(value || 'new');
