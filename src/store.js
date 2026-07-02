@@ -17,13 +17,6 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
-import {
-  getDownloadURL,
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-} from 'firebase/storage';
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCTbzJSHGxllXnFBH8CrOlfRe0xB_1tMeQ',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'scanme-da22f.firebaseapp.com',
@@ -42,14 +35,17 @@ export const isFirebaseConfigured = !forceDemo && Boolean(
 
 let auth;
 let db;
-let storage;
 
 if (isFirebaseConfigured) {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  storage = getStorage(app);
 }
+
+const GITHUB_REPOSITORY = 'Unnamed00000/ScanMe';
+const GITHUB_BRANCH = 'main';
+const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}`;
+const THEME_MANIFEST_URL = `https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_BRANCH}/themes/custom-themes.json`;
 
 const LOCAL_KEY = 'scanme_profiles_v1';
 
@@ -146,11 +142,59 @@ export async function listThemes() {
   if (!isFirebaseConfigured) {
     return Object.values(readLocal().__themes || {});
   }
-  const result = await getDocs(query(collection(db, 'themes'), orderBy('createdAt', 'desc')));
-  return result.docs.map((item) => ({ id: item.id, ...item.data() }));
+  const response = await fetch(`${THEME_MANIFEST_URL}?v=${Date.now()}`, { cache: 'no-store' });
+  if (response.status === 404) return [];
+  if (!response.ok) throw new Error('Не удалось загрузить каталог оформлений с GitHub.');
+  const themes = await response.json();
+  return Array.isArray(themes) ? themes : [];
 }
 
-export async function uploadTheme({ id, name, blob }) {
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result).split(',')[1]));
+    reader.addEventListener('error', () => reject(new Error('Не удалось прочитать изображение.')));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function textToBase64(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+  }
+  return btoa(binary);
+}
+
+function base64ToText(value) {
+  const binary = atob(value.replace(/\s/g, ''));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function githubRequest(path, token, options = {}, allowNotFound = false) {
+  const response = await fetch(`${GITHUB_API}${path}`, {
+    ...options,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  if (allowNotFound && response.status === 404) return null;
+  const payload = response.status === 204 ? null : await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('GitHub-токен недействителен. Создайте новый токен.');
+    if (response.status === 403) throw new Error('Токену нужен доступ Contents: Read and write к репозиторию ScanMe.');
+    throw new Error(payload?.message || `Ошибка GitHub (${response.status}).`);
+  }
+  return payload;
+}
+
+export async function uploadTheme({ id, name, blob, token }) {
   const now = new Date().toISOString();
   if (!isFirebaseConfigured) {
     const data = readLocal();
@@ -165,11 +209,48 @@ export async function uploadTheme({ id, name, blob }) {
     return data.__themes[id];
   }
 
-  const path = `themes/${id}-${Date.now()}.webp`;
-  const fileRef = storageRef(storage, path);
-  await uploadBytes(fileRef, blob, { contentType: 'image/webp', cacheControl: 'public,max-age=31536000' });
-  const imageUrl = await getDownloadURL(fileRef);
-  const theme = { id, name, imageUrl, storagePath: path, createdAt: now };
-  await setDoc(doc(db, 'themes', id), { ...theme, createdAt: serverTimestamp() });
+  const githubToken = String(token || '').trim();
+  if (!githubToken) throw new Error('Вставьте GitHub-токен для сохранения оформления.');
+
+  const reference = await githubRequest(`/git/ref/heads/${GITHUB_BRANCH}`, githubToken);
+  const parentSha = reference.object.sha;
+  const parentCommit = await githubRequest(`/git/commits/${parentSha}`, githubToken);
+  const manifestFile = await githubRequest(`/contents/themes/custom-themes.json?ref=${GITHUB_BRANCH}`, githubToken, {}, true);
+  const existingThemes = manifestFile?.content ? JSON.parse(base64ToText(manifestFile.content)) : [];
+  const fileName = `${id}.webp`;
+  const imageUrl = `https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_BRANCH}/themes/${fileName}`;
+  const theme = { id, name, imageUrl, fileName, createdAt: now };
+  const manifest = [theme, ...(Array.isArray(existingThemes) ? existingThemes.filter((item) => item.id !== id) : [])];
+
+  const imageBlob = await githubRequest('/git/blobs', githubToken, {
+    method: 'POST',
+    body: JSON.stringify({ content: await blobToBase64(blob), encoding: 'base64' }),
+  });
+  const manifestBlob = await githubRequest('/git/blobs', githubToken, {
+    method: 'POST',
+    body: JSON.stringify({ content: textToBase64(`${JSON.stringify(manifest, null, 2)}\n`), encoding: 'base64' }),
+  });
+  const tree = await githubRequest('/git/trees', githubToken, {
+    method: 'POST',
+    body: JSON.stringify({
+      base_tree: parentCommit.tree.sha,
+      tree: [
+        { path: `themes/${fileName}`, mode: '100644', type: 'blob', sha: imageBlob.sha },
+        { path: 'themes/custom-themes.json', mode: '100644', type: 'blob', sha: manifestBlob.sha },
+      ],
+    }),
+  });
+  const commit = await githubRequest('/git/commits', githubToken, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: `Add theme: ${name}`,
+      tree: tree.sha,
+      parents: [parentSha],
+    }),
+  });
+  await githubRequest(`/git/refs/heads/${GITHUB_BRANCH}`, githubToken, {
+    method: 'PATCH',
+    body: JSON.stringify({ sha: commit.sha, force: false }),
+  });
   return theme;
 }

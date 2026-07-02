@@ -105,23 +105,47 @@ async function resizeThemeImage(file) {
   ));
 }
 
-function showThemeUploadModal(file, onUploaded) {
-  const previewUrl = URL.createObjectURL(file);
+function showThemeUploadModal(onUploaded) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
-  const initialName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  let previewObjectUrl = '';
   backdrop.innerHTML = `
     <form class="theme-upload-modal" id="theme-upload-form">
       <button class="modal-close" type="button" aria-label="Закрыть">×</button>
       <p class="eyebrow">Новое оформление</p><h2>Добавить фон</h2>
-      <div class="theme-upload-preview" style="background-image:url('${escapeHtml(previewUrl)}')"></div>
-      <label class="field"><span>Название оформления</span><input name="themeName" required maxlength="60" value="${escapeHtml(initialName)}" placeholder="Например, Красная Toyota"></label>
-      <p class="theme-upload-hint">Изображение автоматически обрежется до 1200 × 1600 и станет одинакового размера с другими оформлениями.</p>
-      <button class="button button--primary button--wide" type="submit">${icons.plus} Добавить оформление</button>
+      <div class="theme-upload-preview"><span>${icons.plus}<b>Предпросмотр изображения</b></span></div>
+      <label class="field"><span>Название оформления</span><input name="themeName" required maxlength="60" placeholder="Например, Красная Toyota"></label>
+      <div class="theme-source-grid">
+        <label class="theme-file-field"><input name="themeFile" type="file" accept="image/jpeg,image/png,image/webp"><span>${icons.plus}<b>Выбрать файл</b><small>JPG, PNG или WebP</small></span></label>
+        <label class="field"><span>Или прямая ссылка на изображение</span><input name="imageUrl" type="url" placeholder="https://example.com/background.jpg"><small>Ссылка должна открывать сам файл изображения</small></label>
+      </div>
+      <label class="field github-token-field"><span>GitHub-токен</span><input name="githubToken" type="password" required autocomplete="off" value="${escapeHtml(sessionStorage.getItem('scanme_github_token') || '')}" placeholder="github_pat_…"><small>Нужен fine-grained token: репозиторий ScanMe → Contents: Read and write. Хранится только до закрытия вкладки. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Создать токен</a></small></label>
+      <p class="theme-upload-hint">Фон автоматически обрежется до 1200 × 1600. Изображение и каталог оформлений сохранятся одним коммитом в папке <b>themes/</b> на GitHub.</p>
+      <button class="button button--primary button--wide" type="submit">${icons.plus} Сохранить в GitHub</button>
     </form>`;
   document.body.append(backdrop);
+  const preview = backdrop.querySelector('.theme-upload-preview');
+  const fileInput = backdrop.querySelector('[name="themeFile"]');
+  const urlInput = backdrop.querySelector('[name="imageUrl"]');
+  const nameInput = backdrop.querySelector('[name="themeName"]');
+  const showPreview = (url) => {
+    preview.style.backgroundImage = `url('${url.replace(/'/g, '%27')}')`;
+    preview.classList.add('has-image');
+  };
+  fileInput.addEventListener('change', () => {
+    const [file] = fileInput.files;
+    if (!file) return;
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = URL.createObjectURL(file);
+    showPreview(previewObjectUrl);
+    if (!nameInput.value) nameInput.value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  });
+  urlInput.addEventListener('input', () => {
+    const value = urlInput.value.trim();
+    if (value) showPreview(value);
+  });
   const close = () => {
-    URL.revokeObjectURL(previewUrl);
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
     backdrop.remove();
   };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
@@ -132,13 +156,32 @@ function showThemeUploadModal(file, onUploaded) {
     button.disabled = true;
     button.textContent = 'Подготавливаем и загружаем…';
     try {
-      const name = new FormData(event.currentTarget).get('themeName').trim();
+      const formData = new FormData(event.currentTarget);
+      const name = formData.get('themeName').trim();
+      const token = formData.get('githubToken').trim();
+      const selectedFile = formData.get('themeFile');
+      const imageUrl = formData.get('imageUrl').trim();
+      let source = selectedFile?.size ? selectedFile : null;
+      if (!source && imageUrl) {
+        let response;
+        try {
+          response = await fetch(imageUrl);
+        } catch {
+          throw new Error('Сайт изображения запрещает загрузку по ссылке. Скачайте картинку и выберите её как файл.');
+        }
+        if (!response.ok) throw new Error('Не удалось скачать изображение по указанной ссылке.');
+        const remoteBlob = await response.blob();
+        if (!remoteBlob.type.startsWith('image/')) throw new Error('По ссылке находится не изображение.');
+        source = new File([remoteBlob], 'theme-image', { type: remoteBlob.type });
+      }
+      if (!source) throw new Error('Выберите файл или вставьте прямую ссылку на изображение.');
       const id = `custom-${slugify(name) || 'theme'}-${Date.now().toString(36)}`;
-      const blob = await resizeThemeImage(file);
-      const theme = await uploadTheme({ id, name, blob });
+      const blob = await resizeThemeImage(source);
+      const theme = await uploadTheme({ id, name, blob, token });
+      sessionStorage.setItem('scanme_github_token', token);
       onUploaded(theme);
       close();
-      toast('Оформление добавлено');
+      toast('Оформление сохранено в themes/ на GitHub');
     } catch (error) {
       toast(error.message, 'error');
       button.disabled = false;
@@ -346,7 +389,6 @@ async function renderEditor(slug) {
             ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
             <button class="theme-add" id="add-theme-button" type="button"><span>${icons.plus}</span><b>Добавить оформление</b><small>Фото обрежется автоматически</small></button>
           </div>
-          <input class="visually-hidden" id="theme-file-input" type="file" accept="image/jpeg,image/png,image/webp">
         </section>
         <section class="form-card">
           <div class="section-heading"><span>04</span><div><h2>Срок публикации</h2><p>Для друзей можно оставить навсегда, для платных заказов — установить точное время отключения.</p></div></div>
@@ -391,19 +433,14 @@ async function renderEditor(slug) {
   form.querySelectorAll('[name="accessMode"]').forEach((radio) => radio.addEventListener('change', syncAccessMode));
   syncAccessMode();
 
-  const themeFileInput = document.querySelector('#theme-file-input');
-  document.querySelector('#add-theme-button').addEventListener('click', () => themeFileInput.click());
-  themeFileInput.addEventListener('change', () => {
-    const [file] = themeFileInput.files;
-    if (!file) return;
-    showThemeUploadModal(file, (theme) => {
+  document.querySelector('#add-theme-button').addEventListener('click', () => {
+    showThemeUploadModal((theme) => {
       const holder = document.createElement('div');
       holder.innerHTML = themeCard(theme, theme.id);
       const option = holder.firstElementChild;
       document.querySelector('#add-theme-button').before(option);
       option.querySelector('input').checked = true;
     });
-    themeFileInput.value = '';
   });
 
   slugField.addEventListener('input', () => {
