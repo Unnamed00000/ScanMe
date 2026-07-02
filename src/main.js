@@ -33,6 +33,7 @@ const themeOptions = [
   { id: 'autumn', name: 'Осенний огонь' },
   { id: 'spring', name: 'Весенний сад' },
   { id: 'romantic', name: 'Романтический вечер' },
+  { id: 'tayotayaris', name: 'Toyota Yaris Aslan' },
 ];
 
 const emptyProfile = () => ({

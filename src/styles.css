@@ -168,6 +168,10 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .theme-option--autumn > span { background-image: linear-gradient(#0b030222, #0b030222), url('/ScanMe/themes/autumn-fire.png'); }
 .theme-option--spring > span { background-image: linear-gradient(#05100822, #05100822), url('/ScanMe/themes/spring-bloom.png'); }
 .theme-option--romantic > span { background-image: linear-gradient(#12010422, #12010422), url('/ScanMe/themes/romantic-roses.png'); }
+
+.theme-option--tayotayaris > span { background-image: linear-gradient(#02050b33, #02050b33), url('/ScanMe/themes/TayotaYaris-Aslan.png');}
+.theme-option--tayotayaris i { background: #7fd7ff; box-shadow: 21px 7px 30px #7fd7ff; }
+
 .theme-option--car i { background: #55cfff; box-shadow: 21px 7px 30px #55cfff; }
 .theme-option--landrover i { background: #8cc8ff; box-shadow: 21px 7px 30px #8cc8ff; }
 .theme-option--lion i { background: #ffb238; box-shadow: 21px 7px 30px #ffb238; }
@@ -216,8 +220,11 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .public-card.theme-autumn { --accent: #ff8a48; --accent-rgb: 255,138,72; background-image: linear-gradient(180deg, rgba(18,4,2,.42), rgba(18,4,2,.2) 48%, rgba(18,4,2,.76)), url('/ScanMe/themes/autumn-fire.png'); }
 .public-card.theme-spring { --accent: #b9f28f; --accent-rgb: 185,242,143; background-image: linear-gradient(180deg, rgba(4,18,10,.5), rgba(4,18,10,.34) 48%, rgba(4,18,10,.78)), url('/ScanMe/themes/spring-bloom.png'); }
 .public-card.theme-romantic { --accent: #ff728b; --accent-rgb: 255,114,139; background-image: linear-gradient(180deg, rgba(20,2,7,.4), rgba(20,2,7,.18) 48%, rgba(20,2,7,.74)), url('/ScanMe/themes/romantic-roses.png'); }
-.public-card.theme-car .portrait, .public-card.theme-landrover .portrait, .public-card.theme-lion .portrait, .public-card.theme-wolf .portrait, .public-card.theme-eagle .portrait, .public-card.theme-mountains .portrait, .public-card.theme-forest .portrait, .public-card.theme-winter .portrait, .public-card.theme-autumn .portrait, .public-card.theme-spring .portrait, .public-card.theme-romantic .portrait { border-color: rgba(var(--accent-rgb),.5); box-shadow: 0 22px 70px rgba(var(--accent-rgb),.25); }
-.public-card.theme-car .contact-dock, .public-card.theme-landrover .contact-dock, .public-card.theme-lion .contact-dock, .public-card.theme-wolf .contact-dock, .public-card.theme-eagle .contact-dock, .public-card.theme-mountains .contact-dock, .public-card.theme-forest .contact-dock, .public-card.theme-winter .contact-dock, .public-card.theme-autumn .contact-dock, .public-card.theme-spring .contact-dock, .public-card.theme-romantic .contact-dock { padding-top: 18px; border-radius: 28px; background: linear-gradient(180deg, transparent, rgba(3,5,8,.46)); backdrop-filter: blur(2px); }
+
+.public-card.theme-tayotayaris {--accent: #7fd7ff; --accent-rgb: 127,215,255; background-color: #03070d; background-image: linear-gradient(180deg,rgba(3,7,13,.40), rgba(3,7,13,.15) 48%, rgba(3,7,13,.72)), url('/ScanMe/themes/TayotaYaris-Aslan.png'); }
+
+.public-card.theme-car .portrait, .public-card.theme-landrover .portrait, .public-card.theme-tayotayaris .portrait, .public-card.theme-lion .portrait, .public-card.theme-wolf .portrait, .public-card.theme-eagle .portrait, .public-card.theme-mountains .portrait, .public-card.theme-forest .portrait, .public-card.theme-winter .portrait, .public-card.theme-autumn .portrait, .public-card.theme-spring .portrait, .public-card.theme-romantic .portrait { border-color: rgba(var(--accent-rgb),.5); box-shadow: 0 22px 70px rgba(var(--accent-rgb),.25); }
+.public-card.theme-car .contact-dock, .public-card.theme-landrover .contact-dock, .public-card.theme-tayotayaris .contact-dock, .public-card.theme-lion .contact-dock, .public-card.theme-wolf .contact-dock, .public-card.theme-eagle .contact-dock, .public-card.theme-mountains .contact-dock, .public-card.theme-forest .contact-dock, .public-card.theme-winter .contact-dock, .public-card.theme-autumn .contact-dock, .public-card.theme-spring .contact-dock, .public-card.theme-romantic .contact-dock { padding-top: 18px; border-radius: 28px; background: linear-gradient(180deg, transparent, rgba(3,5,8,.46)); backdrop-filter: blur(2px); }
 .card-noise { position: absolute; inset: 0; opacity: .055; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E"); z-index: -1; }
 .orb { position: absolute; border-radius: 50%; filter: blur(2px); pointer-events: none; z-index: -2; }
 .orb--one { width: min(75vw, 760px); height: min(75vw, 760px); right: -28vw; top: -40vw; background: radial-gradient(circle, rgba(var(--accent-rgb),.24), rgba(var(--accent-rgb),0) 68%); }
