@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --configLoader runner",
-    "build": "vite build --configLoader runner",
-    "preview": "vite preview",
+    "build": "vite build --configLoader runner && node scripts/finalize-build.mjs",
+    "preview": "vite preview --configLoader runner",
     "check": "node --check src/main.js && node --check src/store.js && node --check src/ui.js"
   },
   "dependencies": {
