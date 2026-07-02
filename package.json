@@ -1,0 +1,19 @@
+{
+  "name": "scanme",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build": "vite build --configLoader runner",
+    "preview": "vite preview",
+    "check": "node --check src/main.js && node --check src/store.js && node --check src/ui.js"
+  },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
