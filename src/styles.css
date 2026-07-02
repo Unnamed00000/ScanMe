@@ -156,7 +156,7 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .theme-option--emerald i { background: #54efb5; box-shadow: 21px 7px 30px #54efb5; }
 .theme-option--graphite > span { background: linear-gradient(145deg, #343840, #090a0d 70%); }
 .theme-option--graphite i { background: #d5d8de; box-shadow: 21px 7px 30px #d5d8de; }
-.theme-option--car > span, .theme-option--landrover > span, .theme-option--lion > span, .theme-option--wolf > span, .theme-option--eagle > span, .theme-option--mountains > span, .theme-option--forest > span, .theme-option--winter > span, .theme-option--autumn > span, .theme-option--spring > span, .theme-option--romantic > span { min-height: 132px; background-position: center 72%; background-size: cover; box-shadow: inset 0 -70px 48px -28px #000; }
+.theme-option--car > span, .theme-option--landrover > span, .theme-option--tayotayaris > span, .theme-option--lion > span, .theme-option--wolf > span, .theme-option--eagle > span, .theme-option--mountains > span, .theme-option--forest > span, .theme-option--winter > span, .theme-option--autumn > span, .theme-option--spring > span, .theme-option--romantic > span { min-height: 132px; background-position: center 72%; background-size: cover; box-shadow: inset 0 -70px 48px -28px #000; }
 .theme-option--car > span { background-image: linear-gradient(#02050b33, #02050b33), url('/ScanMe/themes/midnight-car.png'); }
 .theme-option--landrover > span { background-image: linear-gradient(#02050b33, #02050b33), url('/ScanMe/themes/land-rover-discovery.png'); }
 .theme-option--lion > span { background-image: linear-gradient(#08050222, #08050222), url('/ScanMe/themes/golden-lion.png'); }
@@ -168,10 +168,8 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .theme-option--autumn > span { background-image: linear-gradient(#0b030222, #0b030222), url('/ScanMe/themes/autumn-fire.png'); }
 .theme-option--spring > span { background-image: linear-gradient(#05100822, #05100822), url('/ScanMe/themes/spring-bloom.png'); }
 .theme-option--romantic > span { background-image: linear-gradient(#12010422, #12010422), url('/ScanMe/themes/romantic-roses.png'); }
-
 .theme-option--tayotayaris > span { background-image: linear-gradient(#02050b33, #02050b33), url('/ScanMe/themes/TayotaYaris-Aslan.png');}
 .theme-option--tayotayaris i { background: #7fd7ff; box-shadow: 21px 7px 30px #7fd7ff; }
-
 .theme-option--car i { background: #55cfff; box-shadow: 21px 7px 30px #55cfff; }
 .theme-option--landrover i { background: #8cc8ff; box-shadow: 21px 7px 30px #8cc8ff; }
 .theme-option--lion i { background: #ffb238; box-shadow: 21px 7px 30px #ffb238; }
