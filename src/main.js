@@ -38,12 +38,33 @@ const themeOptions = [
   { id: 'tayotayaris', name: 'Toyota Yaris Aslan' },
 ];
 
+const languageOptions = [
+  { id: 'ru', name: 'Русский' },
+  { id: 'en', name: 'English' },
+  { id: 'da', name: 'Dansk' },
+  { id: 'de', name: 'Deutsch' },
+  { id: 'ka', name: 'ქართული' },
+];
+
+const publicTranslations = {
+  ru: { digitalCard: 'Цифровая визитка', announcement: 'ОБЪЯВЛЕНИЕ', call: 'Позвонить', email: 'Email', website: 'Сайт', saveContact: 'Сохранить контакт', updated: 'Обновлено владельцем', contact: 'Контакт', until: 'До', contactAction: 'Связаться', expiredEyebrow: 'Срок публикации завершён', expiredTitle: 'Страница временно отключена', expiredText: 'снова появится после продления владельцем.' },
+  en: { digitalCard: 'Digital business card', announcement: 'ADVERTISEMENT', call: 'Call', email: 'Email', website: 'Website', saveContact: 'Save contact', updated: 'Updated by the owner', contact: 'Contact', until: 'Until', contactAction: 'Contact', expiredEyebrow: 'Publication period ended', expiredTitle: 'Page temporarily unavailable', expiredText: 'will return after the owner renews it.' },
+  da: { digitalCard: 'Digitalt visitkort', announcement: 'ANNONCE', call: 'Ring', email: 'E-mail', website: 'Hjemmeside', saveContact: 'Gem kontakt', updated: 'Opdateret af ejeren', contact: 'Kontakt', until: 'Til', contactAction: 'Kontakt', expiredEyebrow: 'Udgivelsesperioden er udløbet', expiredTitle: 'Siden er midlertidigt deaktiveret', expiredText: 'vises igen, når ejeren forlænger perioden.' },
+  de: { digitalCard: 'Digitale Visitenkarte', announcement: 'ANZEIGE', call: 'Anrufen', email: 'E-Mail', website: 'Webseite', saveContact: 'Kontakt speichern', updated: 'Vom Inhaber aktualisiert', contact: 'Kontakt', until: 'Bis', contactAction: 'Kontaktieren', expiredEyebrow: 'Veröffentlichungszeitraum beendet', expiredTitle: 'Seite vorübergehend deaktiviert', expiredText: 'wird nach der Verlängerung durch den Inhaber wieder angezeigt.' },
+  ka: { digitalCard: 'ციფრული სავიზიტო ბარათი', announcement: 'განცხადება', call: 'დარეკვა', email: 'ელფოსტა', website: 'ვებსაიტი', saveContact: 'კონტაქტის შენახვა', updated: 'განახლებულია მფლობელის მიერ', contact: 'კონტაქტი', until: 'მოქმედებს', contactAction: 'დაკავშირება', expiredEyebrow: 'გამოქვეყნების ვადა დასრულდა', expiredTitle: 'გვერდი დროებით გამორთულია', expiredText: 'კვლავ გამოჩნდება მფლობელის მიერ ვადის გაგრძელების შემდეგ.' },
+};
+
+function publicCopy(profile) {
+  return publicTranslations[profile.language] || publicTranslations.ru;
+}
+
 const emptyProfile = () => ({
   contentType: 'card',
+  language: 'ru',
   fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', phone: '',
   email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
-  price: '', contactName: '', validUntil: '', ctaLabel: 'Связаться',
+  price: '', contactName: '', validUntil: '', ctaLabel: '',
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
 
@@ -357,6 +378,7 @@ async function renderEditor(slug) {
           <div class="fields-grid">
             ${input('fullName', 'Имя и фамилия', { className: 'card-only', placeholder: 'Александр Иванов' })}
             ${input('slug', 'Адрес страницы', { required: true, placeholder: 'alexander-ivanov', hint: 'Только латинские буквы, цифры и дефис' })}
+            <label class="field"><span>Язык публичной страницы</span><select name="language">${languageOptions.map((language) => `<option value="${language.id}" ${profile.language === language.id ? 'selected' : ''}>${language.name}</option>`).join('')}</select><small>Служебные надписи и кнопки будут показаны на выбранном языке</small></label>
             ${input('title', 'Должность', { className: 'card-only', placeholder: 'Арт-директор' })}
             ${input('company', 'Компания', { className: 'card-only', placeholder: 'Studio North' })}
             <label class="field field--wide card-only"><span>О себе</span><textarea name="bio" rows="4" placeholder="Коротко расскажите о человеке">${escapeHtml(profile.bio)}</textarea></label>
@@ -531,21 +553,22 @@ function contactLink(type, value) {
 }
 
 function renderAnnouncement(profile) {
+  const copy = publicCopy(profile);
   const contacts = [
-    ['phone', profile.phone, icons.phone, 'Позвонить'],
-    ['email', profile.email, icons.mail, 'Email'],
+    ['phone', profile.phone, icons.phone, copy.call],
+    ['email', profile.email, icons.mail, copy.email],
     ['telegram', profile.telegram, '<b>TG</b>', 'Telegram'],
     ['whatsapp', profile.whatsapp, '<b>WA</b>', 'WhatsApp'],
-    ['website', profile.website, icons.globe, 'Сайт'],
+    ['website', profile.website, icons.globe, copy.website],
   ].filter(([, value]) => value);
   const primaryContact = contacts[0];
   const primaryHref = primaryContact ? contactLink(primaryContact[0], primaryContact[1]) : '';
-  const owner = profile.contactName || profile.company || 'Автор объявления';
+  const owner = profile.contactName || profile.company || copy.contact;
 
   app.innerHTML = `
     <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ОБЪЯВЛЕНИЕ</span><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></header>
+      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ${copy.announcement}</span><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></header>
       <section class="announcement-content ${profile.announcementImageUrl ? '' : 'announcement-content--no-image'}">
         ${profile.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(profile.announcementImageUrl)}')"></div>` : ''}
         <div class="announcement-copy">
@@ -555,19 +578,19 @@ function renderAnnouncement(profile) {
           <p class="announcement-description">${escapeHtml(profile.announcementDescription)}</p>
           <div class="announcement-meta">
             ${profile.address ? `<span>${icons.map}${escapeHtml(profile.address)}</span>` : ''}
-            ${profile.validUntil ? `<span>До ${escapeHtml(profile.validUntil)}</span>` : ''}
+            ${profile.validUntil ? `<span>${copy.until} ${escapeHtml(profile.validUntil)}</span>` : ''}
           </div>
         </div>
       </section>
       <section class="announcement-dock">
-        <div class="announcement-owner"><span>${escapeHtml(getInitials(owner))}</span><div><small>Контакт</small><b>${escapeHtml(owner)}</b></div></div>
-        ${primaryHref ? `<a class="announcement-cta" href="${escapeHtml(primaryHref)}" ${primaryContact[0] !== 'phone' && primaryContact[0] !== 'email' ? 'target="_blank" rel="noopener"' : ''}>${escapeHtml(profile.ctaLabel || 'Связаться')} ${icons.arrow}</a>` : ''}
+        <div class="announcement-owner"><span>${escapeHtml(getInitials(owner))}</span><div><small>${copy.contact}</small><b>${escapeHtml(owner)}</b></div></div>
+        ${primaryHref ? `<a class="announcement-cta" href="${escapeHtml(primaryHref)}" ${primaryContact[0] !== 'phone' && primaryContact[0] !== 'email' ? 'target="_blank" rel="noopener"' : ''}>${escapeHtml(profile.ctaLabel || copy.contactAction)} ${icons.arrow}</a>` : ''}
         <div class="contact-links announcement-links">${contacts.map(([type, value, icon, label]) => `<a href="${escapeHtml(contactLink(type, value))}" ${type !== 'phone' && type !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${label}</small></a>`).join('')}</div>
       </section>
     </main>`;
   document.title = `${profile.announcementTitle} — ScanMe`;
   document.querySelector('#share-profile').addEventListener('click', async () => {
-    const data = { title: profile.announcementTitle, text: profile.price || profile.category || 'Объявление', url: window.location.href };
+    const data = { title: profile.announcementTitle, text: profile.price || profile.category || copy.announcement, url: window.location.href };
     if (navigator.share) await navigator.share(data).catch(() => {});
     else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка скопирована'); }
   });
@@ -578,12 +601,14 @@ async function renderPublic(slug) {
   try {
     const profile = await getProfile(slug);
     if (!profile || !profile.published) return renderNotFound();
+    document.documentElement.lang = profile.language || 'ru';
     if (publicationState(profile).id === 'expired') return renderExpired(profile);
     if (profile.contentType === 'announcement') return renderAnnouncement(profile);
+    const copy = publicCopy(profile);
     const contacts = [
-      ['phone', profile.phone, icons.phone, 'Позвонить'],
-      ['email', profile.email, icons.mail, 'Написать'],
-      ['website', profile.website, icons.globe, 'Сайт'],
+      ['phone', profile.phone, icons.phone, copy.call],
+      ['email', profile.email, icons.mail, copy.email],
+      ['website', profile.website, icons.globe, copy.website],
       ['telegram', profile.telegram, '<b>TG</b>', 'Telegram'],
       ['whatsapp', profile.whatsapp, '<b>WA</b>', 'WhatsApp'],
     ].filter(([, value]) => value);
@@ -594,14 +619,14 @@ async function renderPublic(slug) {
         <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></header>
         <section class="identity">
           <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}" ${profile.photoUrl ? `style="background-image:url('${escapeHtml(profile.photoUrl)}')"` : ''}>${profile.photoUrl ? '' : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
-          <p class="identity__label">Digital business card</p><h1>${escapeHtml(profile.fullName)}</h1>
+          <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1>
           <p class="identity__role">${escapeHtml([profile.title, profile.company].filter(Boolean).join(' · '))}</p>
           ${profile.bio ? `<p class="identity__bio">${escapeHtml(profile.bio)}</p>` : ''}
           ${profile.address ? `<p class="identity__location">${icons.map}${escapeHtml(profile.address)}</p>` : ''}
         </section>
         <section class="contact-dock">
           <div class="contact-links">${contacts.map(([type, value, icon, label]) => `<a href="${escapeHtml(contactLink(type, value))}" ${type !== 'phone' && type !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${label}</small></a>`).join('')}</div>
-          <button class="save-contact" id="save-contact">${icons.plus}<span>Сохранить контакт</span></button><p>Обновлено владельцем · ScanMe</p>
+          <button class="save-contact" id="save-contact">${icons.plus}<span>${copy.saveContact}</span></button><p>${copy.updated} · ScanMe</p>
         </section>
       </main>`;
     document.title = `${profile.fullName} — ScanMe`;
@@ -639,8 +664,9 @@ function renderNotFound() {
 }
 
 function renderExpired(profile) {
+  const copy = publicCopy(profile);
   const name = profile.contentType === 'announcement' ? profile.announcementTitle : profile.fullName;
-  app.innerHTML = `<main class="not-found"><span class="brand-mark">${icons.qr}</span><p class="eyebrow">Срок публикации завершён</p><h1>Страница временно отключена</h1><p>${escapeHtml(name || 'Эта публикация')} снова появится после продления владельцем.</p></main>`;
+  app.innerHTML = `<main class="not-found"><span class="brand-mark">${icons.qr}</span><p class="eyebrow">${copy.expiredEyebrow}</p><h1>${copy.expiredTitle}</h1><p>${escapeHtml(name || '')} ${copy.expiredText}</p></main>`;
 }
 
 function renderError(title, message, backHref) {
@@ -650,6 +676,7 @@ function renderError(title, message, backHref) {
 async function render() {
   const { page, value } = route();
   setPublicViewport(page === 'p');
+  document.documentElement.lang = 'ru';
   document.title = 'ScanMe — цифровые визитки';
   if (page === 'p') return renderPublic(value);
   if (page === 'edit') return renderEditor(value || 'new');
