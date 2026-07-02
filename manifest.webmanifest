@@ -1,0 +1,15 @@
+{
+  "name": "ScanMe — админ-панель",
+  "short_name": "ScanMe",
+  "description": "Управление цифровыми визитками и объявлениями",
+  "id": "/ScanMe/pwa/admin",
+  "start_url": "/ScanMe/#/admin",
+  "scope": "/ScanMe/",
+  "display": "standalone",
+  "background_color": "#090b10",
+  "theme_color": "#090b10",
+  "icons": [
+    { "src": "/ScanMe/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/ScanMe/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

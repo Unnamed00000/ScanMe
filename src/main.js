@@ -16,6 +16,22 @@ import { escapeHtml, getInitials, icons, profileUrl, safeUrl, slugify, toast } f
 
 const app = document.querySelector('#app');
 let currentUser = null;
+let deferredInstallPrompt = null;
+
+const serviceWorkerReady = 'serviceWorker' in navigator
+  ? navigator.serviceWorker.register('/ScanMe/sw.js', { scope: '/ScanMe/' }).then(() => navigator.serviceWorker.ready).catch(() => null)
+  : Promise.resolve(null);
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  document.querySelectorAll('.install-pwa-button').forEach((button) => button.classList.add('is-installable'));
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  toast('Приложение установлено');
+});
 
 const themeOptions = [
   { id: 'lime', name: 'Lime noir' },
@@ -58,6 +74,75 @@ function publicCopy(profile) {
   return publicTranslations[profile.language] || publicTranslations.ru;
 }
 
+const installLabels = { ru: 'Установить', en: 'Install', da: 'Installer', de: 'Installieren', ka: 'დაყენება' };
+
+function manifestLink() {
+  let link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'manifest';
+    document.head.append(link);
+  }
+  return link;
+}
+
+function configureAdminPwa() {
+  manifestLink().href = '/ScanMe/manifest.webmanifest';
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'ScanMe');
+}
+
+async function configurePublicPwa(profile) {
+  await serviceWorkerReady;
+  if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+    await Promise.race([
+      new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })),
+      new Promise((resolve) => setTimeout(resolve, 1200)),
+    ]);
+  }
+  const name = profile.contentType === 'announcement' ? profile.announcementTitle : profile.fullName;
+  const description = profile.contentType === 'announcement'
+    ? profile.announcementDescription
+    : [profile.title, profile.company].filter(Boolean).join(' · ');
+  const query = new URLSearchParams({ name: name || 'ScanMe', description, lang: profile.language || 'ru' });
+  manifestLink().href = `/ScanMe/pwa-manifest/${encodeURIComponent(profile.slug)}.webmanifest?${query}`;
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', name || 'ScanMe');
+}
+
+function showInstallHelp(profile) {
+  const language = profile?.language || 'ru';
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const messages = {
+    ru: isIos ? 'Нажмите «Поделиться» в Safari, затем «На экран Домой».' : 'Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран».',
+    en: isIos ? 'Tap Share in Safari, then Add to Home Screen.' : 'Open the browser menu and choose Install app or Add to Home screen.',
+    da: isIos ? 'Tryk på Del i Safari og derefter Føj til hjemmeskærm.' : 'Åbn browsermenuen, og vælg Installer app eller Føj til startskærm.',
+    de: isIos ? 'Tippen Sie in Safari auf Teilen und dann Zum Home-Bildschirm.' : 'Öffnen Sie das Browsermenü und wählen Sie App installieren oder Zum Startbildschirm hinzufügen.',
+    ka: isIos ? 'Safari-ში დააჭირეთ გაზიარებას, შემდეგ მთავარ ეკრანზე დამატებას.' : 'გახსენით ბრაუზერის მენიუ და აირჩიეთ აპის დაყენება ან მთავარ ეკრანზე დამატება.',
+  };
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `<section class="install-modal"><button class="modal-close" aria-label="Close">×</button><span class="brand-mark">${icons.download}</span><h2>${installLabels[language] || installLabels.ru}</h2><p>${messages[language] || messages.ru}</p></section>`;
+  document.body.append(backdrop);
+  const close = () => backdrop.remove();
+  backdrop.querySelector('.modal-close').addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
+}
+
+function bindPwaInstall(profile = null) {
+  document.querySelectorAll('.install-pwa-button').forEach((button) => button.addEventListener('click', async () => {
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      toast('Приложение уже установлено');
+      return;
+    }
+    if (!deferredInstallPrompt) {
+      showInstallHelp(profile);
+      return;
+    }
+    await deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+  }));
+}
+
 const emptyProfile = () => ({
   contentType: 'card',
   language: 'ru',
@@ -96,10 +181,8 @@ function publicThemeStyle(profile) {
 
 function setPublicViewport(enabled) {
   const viewport = document.querySelector('meta[name="viewport"]');
-  viewport?.setAttribute('content', enabled
-    ? 'width=1180, initial-scale=1, viewport-fit=cover'
-    : 'width=device-width, initial-scale=1.0, viewport-fit=cover');
-  document.body.classList.toggle('public-desktop', enabled);
+  viewport?.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+  document.body.classList.toggle('public-page', enabled);
 }
 
 async function resizeThemeImage(file) {
@@ -230,6 +313,7 @@ function adminShell(content, active = 'profiles') {
         <nav class="sidebar__nav">
           <a class="nav-item ${active === 'profiles' ? 'is-active' : ''}" href="#/admin">${icons.user}<span>Публикации</span></a>
           <a class="nav-item ${active === 'new' ? 'is-active' : ''}" href="#/edit/new">${icons.plus}<span>Создать</span></a>
+          <button class="nav-item nav-button install-pwa-button" type="button">${icons.download}<span>Установить ScanMe</span></button>
         </nav>
         <div class="sidebar__foot">
           <div class="admin-user"><span class="admin-user__avatar">A</span><div><strong>Администратор</strong><small>${escapeHtml(currentUser?.email || 'Локальный режим')}</small></div></div>
@@ -244,6 +328,7 @@ function adminShell(content, active = 'profiles') {
 }
 
 function bindAdminShell() {
+  bindPwaInstall();
   document.querySelector('#logout-button')?.addEventListener('click', async () => {
     await logout();
     currentUser = null;
@@ -319,9 +404,10 @@ function renderLogin() {
         <p class="eyebrow">Панель управления</p><h2>Вход в ScanMe</h2><p>Введите данные администратора.</p>
         <label>Электронная почта<input name="email" type="email" autocomplete="email" required placeholder="admin@example.com"></label>
         <label>Пароль<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
-        <button class="button button--primary button--wide" type="submit">Войти ${icons.arrow}</button><p class="form-error" id="login-error"></p>
+        <button class="button button--primary button--wide" type="submit">Войти ${icons.arrow}</button><button class="button button--ghost button--wide install-pwa-button" type="button">${icons.download} Установить ScanMe</button><p class="form-error" id="login-error"></p>
       </form></section>
     </main>`;
+  bindPwaInstall();
   document.querySelector('#login-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = event.currentTarget.querySelector('button');
@@ -568,7 +654,7 @@ function renderAnnouncement(profile) {
   app.innerHTML = `
     <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ${copy.announcement}</span><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></header>
+      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ${copy.announcement}</span><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></div></header>
       <section class="announcement-content ${profile.announcementImageUrl ? '' : 'announcement-content--no-image'}">
         ${profile.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(profile.announcementImageUrl)}')"></div>` : ''}
         <div class="announcement-copy">
@@ -589,6 +675,8 @@ function renderAnnouncement(profile) {
       </section>
     </main>`;
   document.title = `${profile.announcementTitle} — ScanMe`;
+  configurePublicPwa(profile);
+  bindPwaInstall(profile);
   document.querySelector('#share-profile').addEventListener('click', async () => {
     const data = { title: profile.announcementTitle, text: profile.price || profile.category || copy.announcement, url: window.location.href };
     if (navigator.share) await navigator.share(data).catch(() => {});
@@ -616,7 +704,7 @@ async function renderPublic(slug) {
     app.innerHTML = `
       <main class="public-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
         <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-        <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></header>
+        <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
         <section class="identity">
           <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}" ${profile.photoUrl ? `style="background-image:url('${escapeHtml(profile.photoUrl)}')"` : ''}>${profile.photoUrl ? '' : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
           <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1>
@@ -630,6 +718,8 @@ async function renderPublic(slug) {
         </section>
       </main>`;
     document.title = `${profile.fullName} — ScanMe`;
+    configurePublicPwa(profile);
+    bindPwaInstall(profile);
     document.querySelector('#share-profile').addEventListener('click', async () => {
       const data = { title: profile.fullName, text: [profile.title, profile.company].filter(Boolean).join(' · '), url: window.location.href };
       if (navigator.share) await navigator.share(data).catch(() => {});
@@ -677,6 +767,7 @@ async function render() {
   const { page, value } = route();
   setPublicViewport(page === 'p');
   document.documentElement.lang = 'ru';
+  if (page !== 'p') configureAdminPwa();
   document.title = 'ScanMe — цифровые визитки';
   if (page === 'p') return renderPublic(value);
   if (page === 'edit') return renderEditor(value || 'new');
