@@ -140,6 +140,11 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .theme-option--ocean i { background: #42ddff; box-shadow: 21px 7px 30px #42ddff; }
 .theme-option--sunset > span { background: #2b1017; }
 .theme-option--sunset i { background: #ff8059; box-shadow: 21px 7px 30px #ff8059; }
+.theme-option--car > span, .theme-option--lion > span { min-height: 132px; background-position: center 72%; background-size: cover; box-shadow: inset 0 -60px 45px -28px #000; }
+.theme-option--car > span { background-image: linear-gradient(#02050b33, #02050b33), url('/ScanMe/themes/midnight-car.png'); }
+.theme-option--lion > span { background-image: linear-gradient(#08050222, #08050222), url('/ScanMe/themes/golden-lion.png'); }
+.theme-option--car i { background: #55cfff; box-shadow: 21px 7px 30px #55cfff; }
+.theme-option--lion i { background: #ffb238; box-shadow: 21px 7px 30px #ffb238; }
 .publish-toggle { display: flex; align-items: center; gap: 13px; margin-top: 24px; cursor: pointer; }
 .publish-toggle input { position: absolute; opacity: 0; pointer-events: none; }
 .publish-toggle > span { position: relative; width: 42px; height: 24px; flex: 0 0 auto; border-radius: 20px; background: #d6d7d1; transition: background .2s; }
@@ -165,6 +170,11 @@ input:focus, textarea:focus { border-color: #94b52d; box-shadow: 0 0 0 3px rgba(
 .public-card { --accent: #c9ff38; --accent-rgb: 201,255,56; position: relative; display: flex; overflow: hidden; min-height: 100vh; min-height: 100dvh; flex-direction: column; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); color: white; background: #080a0f; isolation: isolate; }
 .public-card.theme-ocean { --accent: #4ae1ff; --accent-rgb: 74,225,255; background: #061521; }
 .public-card.theme-sunset { --accent: #ff7c59; --accent-rgb: 255,124,89; background: #180b10; }
+.public-card.theme-car, .public-card.theme-lion { background-position: center; background-size: cover; background-repeat: no-repeat; }
+.public-card.theme-car { --accent: #64d9ff; --accent-rgb: 100,217,255; background-color: #03070d; background-image: linear-gradient(180deg, rgba(3,7,13,.42), rgba(3,7,13,.18) 48%, rgba(3,7,13,.7)), url('/ScanMe/themes/midnight-car.png'); }
+.public-card.theme-lion { --accent: #ffb43c; --accent-rgb: 255,180,60; background-color: #0c0703; background-image: linear-gradient(180deg, rgba(10,6,2,.48), rgba(10,6,2,.2) 50%, rgba(10,6,2,.72)), url('/ScanMe/themes/golden-lion.png'); }
+.public-card.theme-car .portrait, .public-card.theme-lion .portrait { border-color: rgba(var(--accent-rgb),.5); box-shadow: 0 22px 70px rgba(var(--accent-rgb),.25); }
+.public-card.theme-car .contact-dock, .public-card.theme-lion .contact-dock { padding-top: 18px; border-radius: 28px; background: linear-gradient(180deg, transparent, rgba(3,5,8,.42)); backdrop-filter: blur(2px); }
 .card-noise { position: absolute; inset: 0; opacity: .055; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E"); z-index: -1; }
 .orb { position: absolute; border-radius: 50%; filter: blur(2px); pointer-events: none; z-index: -2; }
 .orb--one { width: min(75vw, 760px); height: min(75vw, 760px); right: -28vw; top: -40vw; background: radial-gradient(circle, rgba(var(--accent-rgb),.24), rgba(var(--accent-rgb),0) 68%); }

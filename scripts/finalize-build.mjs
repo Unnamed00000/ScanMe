@@ -13,6 +13,9 @@ await rm(sourceHtml);
 await copyFile(builtHtml, resolve(root, 'index.html'));
 await copyFile(resolve(dist, 'favicon.svg'), resolve(root, 'favicon.svg'));
 
+await rm(resolve(dist, 'themes'), { recursive: true, force: true });
+await cp(resolve(root, 'themes'), resolve(dist, 'themes'), { recursive: true, force: true });
+
 await rm(resolve(root, 'assets'), { recursive: true, force: true });
 await mkdir(resolve(root, 'assets'), { recursive: true });
 await cp(resolve(dist, 'assets'), resolve(root, 'assets'), { recursive: true, force: true });

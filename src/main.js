@@ -15,6 +15,14 @@ import { escapeHtml, getInitials, icons, profileUrl, safeUrl, slugify, toast } f
 const app = document.querySelector('#app');
 let currentUser = null;
 
+const themeOptions = [
+  { id: 'lime', name: 'Lime noir' },
+  { id: 'ocean', name: 'Deep ocean' },
+  { id: 'sunset', name: 'Warm sunset' },
+  { id: 'car', name: 'Ночной автомобиль' },
+  { id: 'lion', name: 'Золотой лев' },
+];
+
 const emptyProfile = () => ({
   fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', phone: '',
   email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
@@ -165,7 +173,7 @@ async function renderEditor(slug) {
         <section class="form-card">
           <div class="section-heading"><span>03</span><div><h2>Оформление</h2><p>Выберите характер визитки.</p></div></div>
           <div class="theme-picker">
-            ${['lime', 'ocean', 'sunset'].map((theme) => `<label class="theme-option theme-option--${theme}"><input type="radio" name="theme" value="${theme}" ${profile.theme === theme ? 'checked' : ''}><span><i></i><b>${{ lime: 'Lime noir', ocean: 'Deep ocean', sunset: 'Warm sunset' }[theme]}</b></span></label>`).join('')}
+            ${themeOptions.map((theme) => `<label class="theme-option theme-option--${theme.id}"><input type="radio" name="theme" value="${theme.id}" ${profile.theme === theme.id ? 'checked' : ''}><span><i></i><b>${theme.name}</b></span></label>`).join('')}
           </div>
           <label class="publish-toggle"><input type="checkbox" name="published" ${profile.published ? 'checked' : ''}><span></span><div><b>Опубликовать профиль</b><small>Визитка будет доступна по ссылке и QR-коду</small></div></label>
         </section>
