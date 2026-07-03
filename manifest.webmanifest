@@ -1,6 +1,6 @@
 {
-  "name": "ScanMe — админ-панель",
-  "short_name": "ScanMe",
+  "name": "SCANME",
+  "short_name": "SCANME",
   "description": "Управление цифровыми визитками и объявлениями",
   "id": "/ScanMe/pwa/admin",
   "start_url": "/ScanMe/#/admin",
