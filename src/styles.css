@@ -345,6 +345,25 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 
 .public-card.theme-tayotayaris {--accent: #7fd7ff; --accent-rgb: 127,215,255; background-color: #03070d; background-image: linear-gradient(180deg,rgba(3,7,13,.40), rgba(3,7,13,.15) 48%, rgba(3,7,13,.72)), url('/ScanMe/themes/TayotaYaris-Aslan.png'); }
 
+.public-card.theme-car { --theme-photo: url('/ScanMe/themes/midnight-car.png'); }
+.public-card.theme-landrover { --theme-photo: url('/ScanMe/themes/land-rover-discovery.png'); }
+.public-card.theme-tayotayaris { --theme-photo: url('/ScanMe/themes/TayotaYaris-Aslan.png'); }
+.public-card.theme-lion { --theme-photo: url('/ScanMe/themes/golden-lion.png'); }
+.public-card.theme-wolf { --theme-photo: url('/ScanMe/themes/silver-wolf.png'); }
+.public-card.theme-eagle { --theme-photo: url('/ScanMe/themes/golden-eagle.png'); }
+.public-card.theme-mountains { --theme-photo: url('/ScanMe/themes/alpine-mountains.png'); }
+.public-card.theme-forest { --theme-photo: url('/ScanMe/themes/emerald-forest.png'); }
+.public-card.theme-winter { --theme-photo: url('/ScanMe/themes/winter-night.png'); }
+.public-card.theme-autumn { --theme-photo: url('/ScanMe/themes/autumn-fire.png'); }
+.public-card.theme-spring { --theme-photo: url('/ScanMe/themes/spring-bloom.png'); }
+.public-card.theme-romantic { --theme-photo: url('/ScanMe/themes/romantic-roses.png'); }
+.public-card.theme-custom { --theme-photo: var(--custom-theme-image); }
+
+@media (min-width: 900px) and (min-aspect-ratio: 1 / 1) {
+  .public-card[style*="--custom-theme-image"]::before, .public-card.theme-car::before, .public-card.theme-landrover::before, .public-card.theme-tayotayaris::before, .public-card.theme-lion::before, .public-card.theme-wolf::before, .public-card.theme-eagle::before, .public-card.theme-mountains::before, .public-card.theme-forest::before, .public-card.theme-winter::before, .public-card.theme-autumn::before, .public-card.theme-spring::before, .public-card.theme-romantic::before { position: absolute; inset: 0; background-image: linear-gradient(180deg, rgba(3,7,13,.2), rgba(3,7,13,.04) 46%, rgba(3,7,13,.58)), var(--theme-photo); background-position: center; background-size: cover, auto 106%; background-repeat: no-repeat; box-shadow: inset 0 0 120px #02050a99; content: ''; pointer-events: none; z-index: -2; }
+  .editor-phone-preview::before { display: none; }
+}
+
 .public-card.theme-car .portrait, .public-card.theme-landrover .portrait, .public-card.theme-tayotayaris .portrait, .public-card.theme-lion .portrait, .public-card.theme-wolf .portrait, .public-card.theme-eagle .portrait, .public-card.theme-mountains .portrait, .public-card.theme-forest .portrait, .public-card.theme-winter .portrait, .public-card.theme-autumn .portrait, .public-card.theme-spring .portrait, .public-card.theme-romantic .portrait { border-color: rgba(var(--accent-rgb),.5); box-shadow: 0 22px 70px rgba(var(--accent-rgb),.25); }
 .public-card.theme-car .contact-dock, .public-card.theme-landrover .contact-dock, .public-card.theme-tayotayaris .contact-dock, .public-card.theme-lion .contact-dock, .public-card.theme-wolf .contact-dock, .public-card.theme-eagle .contact-dock, .public-card.theme-mountains .contact-dock, .public-card.theme-forest .contact-dock, .public-card.theme-winter .contact-dock, .public-card.theme-autumn .contact-dock, .public-card.theme-spring .contact-dock, .public-card.theme-romantic .contact-dock, .public-card.theme-custom .contact-dock { padding-top: 18px; border-radius: 28px; background: linear-gradient(180deg, transparent, rgba(3,5,8,var(--text-panel-opacity,.32))); backdrop-filter: blur(var(--text-panel-blur,6px)); }
 .card-noise { position: absolute; inset: 0; opacity: .055; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E"); z-index: -1; }
