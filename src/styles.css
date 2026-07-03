@@ -400,6 +400,7 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-order-section { display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: clamp(28px, 6vw, 78px); margin-top: 95px; padding: 85px 0 0; border-top: 1px solid #d7d9d1; }
 .catalog-order-copy { position: sticky; top: 30px; }
 .catalog-order-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; padding: 32px; border-radius: 25px; color: #111319; background: #111319; }
+.catalog-honey { position: absolute; width: 1px; height: 1px; left: -10000px; opacity: 0; pointer-events: none; }
 .catalog-order-form .catalog-control { color: #c4c8cf; }
 .catalog-control--wide, .catalog-order-form .button, .catalog-order-form > small { grid-column: 1 / -1; }
 .button--catalog-order { min-height: 54px; margin-top: 20px; color: #090b0f; background: var(--lime); }

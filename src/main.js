@@ -76,6 +76,13 @@ const qrThemePalettes = {
   romantic: { dark: '#35101a', light: '#fff0f3', accent: '#ff728b' },
 };
 
+const catalogThemeImages = {
+  car: '/ScanMe/themes/midnight-car.png', landrover: '/ScanMe/themes/land-rover-discovery.png', tayotayaris: '/ScanMe/themes/TayotaYaris-Aslan.png',
+  lion: '/ScanMe/themes/golden-lion.png', wolf: '/ScanMe/themes/silver-wolf.png', eagle: '/ScanMe/themes/golden-eagle.png',
+  mountains: '/ScanMe/themes/alpine-mountains.png', forest: '/ScanMe/themes/emerald-forest.png', winter: '/ScanMe/themes/winter-night.png',
+  autumn: '/ScanMe/themes/autumn-fire.png', spring: '/ScanMe/themes/spring-bloom.png', romantic: '/ScanMe/themes/romantic-roses.png',
+};
+
 function qrPalette(theme) {
   return qrThemePalettes[theme] || qrThemePalettes.lime;
 }
@@ -120,6 +127,116 @@ function drawQrBrand(canvas, palette) {
   context.lineTo(offset + 14 * scale, offset + 21 * scale);
   context.lineTo(offset + 16 * scale, offset + 21 * scale);
   context.stroke();
+}
+
+function loadCanvasImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', () => reject(new Error('Не удалось загрузить фон для карточки.')));
+    image.src = url;
+  });
+}
+
+function drawCoverImage(context, image, width, height) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const imageWidth = image.width * scale;
+  const imageHeight = image.height * scale;
+  context.drawImage(image, (width - imageWidth) / 2, (height - imageHeight) / 2, imageWidth, imageHeight);
+}
+
+function canvasFontFamily(id) {
+  return fontStacks[id] || fontStacks.manrope;
+}
+
+function fitCanvasText(context, text, weight, preferredSize, minimumSize, maxWidth, family) {
+  let size = preferredSize;
+  do {
+    context.font = `${weight} ${size}px ${family}`;
+    if (context.measureText(text).width <= maxWidth) break;
+    size -= 2;
+  } while (size > minimumSize);
+  return size;
+}
+
+function drawOrderBrand(context, palette) {
+  roundedCanvasRect(context, 70, 66, 72, 72, 21);
+  context.fillStyle = palette.accent;
+  context.fill();
+  context.strokeStyle = palette.dark;
+  context.lineWidth = 6;
+  [[88, 84], [112, 84], [88, 108]].forEach(([x, y]) => context.strokeRect(x, y, 14, 14));
+  context.fillStyle = '#fff';
+  context.font = "700 30px 'Unbounded', sans-serif";
+  context.textAlign = 'left';
+  context.fillText('SCANME', 164, 113);
+}
+
+async function createOrderCardImage({ theme, fullName, role, fonts }) {
+  await document.fonts?.ready;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const context = canvas.getContext('2d');
+  const palette = qrPalette(theme);
+  context.fillStyle = palette.dark;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const themeImage = catalogThemeImages[theme];
+  if (themeImage) {
+    drawCoverImage(context, await loadCanvasImage(themeImage), canvas.width, canvas.height);
+    const shade = context.createLinearGradient(0, 0, 0, canvas.height);
+    shade.addColorStop(0, 'rgba(3,6,9,.48)'); shade.addColorStop(.48, 'rgba(3,6,9,.34)'); shade.addColorStop(1, 'rgba(3,6,9,.88)');
+    context.fillStyle = shade;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    const glow = context.createRadialGradient(880, 90, 0, 880, 90, 620);
+    glow.addColorStop(0, palette.accent); glow.addColorStop(1, 'transparent');
+    context.globalAlpha = .28; context.fillStyle = glow; context.fillRect(0, 0, canvas.width, canvas.height); context.globalAlpha = 1;
+  }
+  drawOrderBrand(context, palette);
+  context.fillStyle = 'rgba(255,255,255,.62)';
+  context.font = "700 22px 'Manrope', sans-serif";
+  context.textAlign = 'right';
+  context.fillText('ЦИФРОВАЯ ВИЗИТКА', 1010, 108);
+
+  roundedCanvasRect(context, 405, 235, 270, 270, 76);
+  context.fillStyle = palette.accent;
+  context.fill();
+  context.fillStyle = palette.dark;
+  context.textAlign = 'center';
+  context.font = `700 78px ${canvasFontFamily(fonts.heading)}`;
+  context.fillText(getInitials(fullName) || 'Я', 540, 402);
+
+  context.fillStyle = palette.accent;
+  context.font = `700 22px ${canvasFontFamily(fonts.secondary)}`;
+  context.fillText('ПЕРСОНАЛЬНАЯ СТРАНИЦА', 540, 585);
+  context.fillStyle = '#fff';
+  fitCanvasText(context, fullName, 700, 88, 48, 900, canvasFontFamily(fonts.heading));
+  context.fillText(fullName, 540, 690);
+  context.fillStyle = 'rgba(255,255,255,.78)';
+  fitCanvasText(context, role, 500, 36, 24, 850, canvasFontFamily(fonts.secondary));
+  context.fillText(role, 540, 756);
+  context.fillStyle = 'rgba(255,255,255,.56)';
+  context.font = `500 27px ${canvasFontFamily(fonts.body)}`;
+  context.fillText('Контакты, ссылки и нужная информация всегда под рукой.', 540, 832);
+
+  const contactLabels = ['ПОЗВОНИТЬ', 'EMAIL', 'САЙТ'];
+  contactLabels.forEach((label, index) => {
+    const x = 238 + index * 302;
+    roundedCanvasRect(context, x - 68, 902, 136, 136, 36);
+    context.fillStyle = 'rgba(255,255,255,.08)'; context.fill();
+    context.strokeStyle = 'rgba(255,255,255,.18)'; context.lineWidth = 2; context.stroke();
+    context.fillStyle = palette.accent; context.font = `700 34px ${canvasFontFamily(fonts.contact)}`; context.fillText(index === 0 ? '☎' : index === 1 ? '@' : '⌁', x, 982);
+    context.fillStyle = 'rgba(255,255,255,.68)'; context.font = `700 17px ${canvasFontFamily(fonts.contact)}`; context.fillText(label, x, 1068);
+  });
+  roundedCanvasRect(context, 250, 1132, 580, 82, 25);
+  context.fillStyle = palette.accent; context.fill();
+  context.fillStyle = palette.dark; context.font = `800 23px ${canvasFontFamily(fonts.contact)}`; context.fillText('СОХРАНИТЬ КОНТАКТ', 540, 1183);
+  context.fillStyle = 'rgba(255,255,255,.38)'; context.font = "600 16px 'Manrope', sans-serif"; context.fillText('SCANME · ПРЕДПРОСМОТР ЗАКАЗА', 540, 1292);
+
+  const blob = await new Promise((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Не удалось создать изображение карточки.')), 'image/png', 1));
+  return new File([blob], `scanme-${slugify(fullName) || 'order'}.png`, { type: 'image/png' });
 }
 
 const languageOptions = [
@@ -240,18 +357,12 @@ function renderCatalog() {
     <main class="catalog-page">
       <header class="catalog-header">
         <a class="catalog-brand" href="#/catalog" aria-label="Каталог SCANME"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a>
-        <a class="catalog-admin-link" href="#/admin">Вход в панель ${icons.arrow}</a>
       </header>
       <section class="catalog-hero">
-        <p class="eyebrow">Каталог цифровых визиток</p>
-        <h1>Один QR-код.<br><em>Ваша страница.</em></h1>
-        <p>Персональные визитки и объявления, которые открываются на весь экран, устанавливаются на телефон и всегда остаются актуальными.</p>
-        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-themes">Смотреть оформления ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} Поделиться</button></div>
-      </section>
-      <section class="catalog-benefits" aria-label="Преимущества">
-        <article><span>01</span><b>Один QR навсегда</b><p>Меняйте контакты и оформление, не перепечатывая QR-код.</p></article>
-        <article><span>02</span><b>Как приложение</b><p>Каждую визитку можно добавить на главный экран телефона.</p></article>
-        <article><span>03</span><b>Полный контроль</b><p>Публикация, таймер отключения, языки, шрифты и разные форматы.</p></article>
+        <p class="eyebrow">Соберите свою визитку</p>
+        <h1>Выберите. Настройте.<br><em>Сразу увидьте.</em></h1>
+        <p>Выберите оформление и шрифты, введите своё имя и отправьте готовый вариант одним заказом.</p>
+        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-themes">Начать создание ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} Поделиться</button></div>
       </section>
       <section class="catalog-gallery" id="catalog-themes">
         <div class="catalog-section-heading"><div><p class="eyebrow">Шаг 1 · оформление</p><h2>Выберите свой характер</h2></div><p>Нажмите на любое оформление — предпросмотр ниже изменится сразу.</p></div>
@@ -284,12 +395,19 @@ function renderCatalog() {
         </section>
         <section class="catalog-order-section">
           <div class="catalog-order-copy"><p class="eyebrow">Шаг 3 · заказ</p><h2>Отправьте выбранный вариант</h2><p>Тема, шрифты и текст автоматически попадут в письмо. Останется только отправить его.</p></div>
-          <form class="catalog-order-form" id="catalog-order-form">
-            <label class="catalog-control"><span>Ваше имя *</span><input name="customerName" required maxlength="70" placeholder="Как к вам обращаться"></label>
-            <label class="catalog-control"><span>Телефон, WhatsApp или Telegram *</span><input name="customerContact" required maxlength="100" placeholder="Например, +45… или @username"></label>
-            <label class="catalog-control catalog-control--wide"><span>Комментарий</span><textarea name="customerNote" rows="4" maxlength="800" placeholder="Какие контакты и информацию добавить на визитку"></textarea></label>
+          <form class="catalog-order-form" id="catalog-order-form" action="https://formsubmit.co/${ADMIN_EMAIL}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_subject" value="Новый заказ визитки SCANME">
+            <input type="hidden" name="_template" value="table">
+            <input type="hidden" name="_next" value="https://unnamed00000.github.io/ScanMe/#/catalog">
+            <input type="hidden" name="_url" value="https://unnamed00000.github.io/ScanMe/#/catalog">
+            <input class="catalog-honey" type="text" name="_honey" tabindex="-1" autocomplete="off">
+            <input id="catalog-order-attachment" type="file" name="attachment" accept="image/png" hidden>
+            <label class="catalog-control"><span>Ваше имя *</span><input name="Клиент" required maxlength="70" placeholder="Как к вам обращаться"></label>
+            <label class="catalog-control"><span>Email для ответа *</span><input name="email" type="email" required maxlength="120" placeholder="name@example.com"></label>
+            <label class="catalog-control catalog-control--wide"><span>Телефон, WhatsApp или Telegram</span><input name="Контакт" maxlength="100" placeholder="Например, +45… или @username"></label>
+            <label class="catalog-control catalog-control--wide"><span>Комментарий</span><textarea name="Комментарий" rows="4" maxlength="800" placeholder="Какие контакты и информацию добавить на визитку"></textarea></label>
             <button class="button button--catalog-order" type="submit">${icons.mail} Отправить заказ</button>
-            <small>Откроется ваше почтовое приложение с уже заполненным заказом.</small>
+            <small>Вы получите текст заказа и PNG-картинку выбранной визитки. При первой заявке владелец сайта подтвердит получение писем.</small>
           </form>
         </section>
       </section>
@@ -327,28 +445,48 @@ function renderCatalog() {
     if (navigator.share) await navigator.share(data).catch(() => {});
     else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка на каталог скопирована'); }
   });
-  document.querySelector('#catalog-order-form').addEventListener('submit', (event) => {
+  document.querySelector('#catalog-order-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
     const themeName = themeOptions.find((theme) => theme.id === selectedTheme)?.name || selectedTheme;
     const fontName = (field) => fontOptions.find((font) => font.id === field.value)?.name || field.value;
-    const subject = `Заказ визитки SCANME — ${data.get('customerName')}`;
-    const body = [
-      'Новый заказ из каталога SCANME', '',
-      `Клиент: ${data.get('customerName')}`,
-      `Контакт: ${data.get('customerContact')}`,
-      `Имя на визитке: ${nameInput.value.trim() || 'не указано'}`,
-      `Должность / компания: ${roleInput.value.trim() || 'не указано'}`,
-      `Оформление: ${themeName}`,
-      `Шрифт имени: ${fontName(fontFields.heading)}`,
-      `Шрифт должности: ${fontName(fontFields.secondary)}`,
-      `Шрифт описания: ${fontName(fontFields.body)}`,
-      `Шрифт контактов: ${fontName(fontFields.contact)}`,
-      '', `Комментарий: ${data.get('customerNote') || 'нет'}`,
-    ].join('\n');
-    window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    toast('Заказ подготовлен — отправьте письмо в почтовом приложении');
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    button.textContent = 'Создаём карточку…';
+    try {
+      const fullName = nameInput.value.trim() || 'Ваше имя';
+      const cardFile = await createOrderCardImage({
+        theme: selectedTheme, fullName, role: roleInput.value.trim() || 'Должность · Компания',
+        fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
+      });
+      const transfer = new DataTransfer();
+      transfer.items.add(cardFile);
+      document.querySelector('#catalog-order-attachment').files = transfer.files;
+      const orderFields = {
+        'Имя на визитке': fullName,
+        'Должность / компания': roleInput.value.trim() || 'не указано',
+        'Оформление': themeName,
+        'Шрифт имени': fontName(fontFields.heading),
+        'Шрифт должности': fontName(fontFields.secondary),
+        'Шрифт описания': fontName(fontFields.body),
+        'Шрифт контактов': fontName(fontFields.contact),
+      };
+      event.currentTarget.querySelectorAll('[data-generated-order]').forEach((field) => field.remove());
+      Object.entries(orderFields).forEach(([name, value]) => {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden'; hidden.name = name; hidden.value = value; hidden.dataset.generatedOrder = 'true';
+        event.currentTarget.append(hidden);
+      });
+      button.textContent = 'Отправляем заказ…';
+      event.currentTarget.submit();
+      toast('Заказ и изображение карточки подготовлены к отправке');
+      setTimeout(() => { button.disabled = false; button.innerHTML = `${icons.mail} Отправить заказ`; }, 1800);
+    } catch (error) {
+      toast(error.message, 'error');
+      button.disabled = false;
+      button.innerHTML = `${icons.mail} Отправить заказ`;
+    }
   });
 }
 
