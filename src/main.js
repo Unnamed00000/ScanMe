@@ -150,6 +150,87 @@ function drawQrBrand(canvas, palette) {
   context.stroke();
 }
 
+const QR_CARD_WIDTH_MM = 83.6;
+const QR_CARD_HEIGHT_MM = 52;
+const QR_CARD_WIDTH_PX = 987;
+const QR_CARD_HEIGHT_PX = 614;
+
+function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && context.measureText(candidate).width > maxWidth && lines.length < maxLines - 1) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, maxLines);
+}
+
+function drawQrBankCard(canvas, qrCanvas, { name, label, palette }) {
+  canvas.width = QR_CARD_WIDTH_PX;
+  canvas.height = QR_CARD_HEIGHT_PX;
+  const context = canvas.getContext('2d');
+  context.fillStyle = palette.dark;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const glow = context.createRadialGradient(canvas.width, 0, 0, canvas.width, 0, 620);
+  glow.addColorStop(0, palette.accent);
+  glow.addColorStop(1, 'transparent');
+  context.globalAlpha = 0.24;
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.globalAlpha = 1;
+
+  roundedCanvasRect(context, 42, 42, 530, 530, 34);
+  context.fillStyle = palette.light;
+  context.fill();
+  context.drawImage(qrCanvas, 66, 66, 482, 482);
+
+  context.textAlign = 'left';
+  context.fillStyle = palette.accent;
+  context.font = "700 22px 'Manrope', sans-serif";
+  context.fillText(String(label || 'Digital business card').toUpperCase(), 620, 132);
+
+  context.fillStyle = '#fff';
+  let nameSize = 54;
+  let lines = [];
+  do {
+    context.font = `700 ${nameSize}px 'Unbounded', 'Manrope', sans-serif`;
+    lines = wrapQrCardName(context, name || 'SCANME', 320, 3);
+    if (lines.length <= 2 && lines.every((line) => context.measureText(line).width <= 320)) break;
+    nameSize -= 2;
+  } while (nameSize > 30);
+  const lineHeight = nameSize * 1.12;
+  lines.forEach((line, index) => context.fillText(line, 620, 224 + index * lineHeight));
+
+  context.fillStyle = 'rgba(255,255,255,.58)';
+  context.font = "700 18px 'Manrope', sans-serif";
+  context.fillText('QR CODE · SCAN TO OPEN', 620, 470);
+  context.fillStyle = palette.accent;
+  context.font = "700 27px 'Unbounded', sans-serif";
+  context.fillText('SCANME', 620, 530);
+  context.fillStyle = 'rgba(255,255,255,.42)';
+  context.font = "600 15px 'Manrope', sans-serif";
+  context.fillText(`${QR_CARD_WIDTH_MM} × ${QR_CARD_HEIGHT_MM} mm · 300 DPI`, 620, 565);
+}
+
+function printQrBankCard(canvas, title) {
+  const printWindow = window.open('', '_blank', 'width=900,height=650');
+  if (!printWindow) {
+    toast('Браузер заблокировал окно печати. Разрешите всплывающие окна и попробуйте снова.', 'error');
+    return;
+  }
+  const imageUrl = canvas.toDataURL('image/png');
+  printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>@page{size:${QR_CARD_WIDTH_MM}mm ${QR_CARD_HEIGHT_MM}mm;margin:0}html,body{width:${QR_CARD_WIDTH_MM}mm;height:${QR_CARD_HEIGHT_MM}mm;margin:0;padding:0;overflow:hidden}img{display:block;width:${QR_CARD_WIDTH_MM}mm;height:${QR_CARD_HEIGHT_MM}mm}</style></head><body><img src="${imageUrl}" alt="${escapeHtml(title)}"><script>document.querySelector('img').addEventListener('load',()=>{window.print()})<\/script></body></html>`);
+  printWindow.document.close();
+}
+
 function loadCanvasImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -1367,6 +1448,10 @@ async function showQrModal(slug, redirectOnClose = false) {
   const profile = await getProfile(slug).catch(() => null);
   const palette = qrPalette(profile?.theme);
   const themeName = themeOptions.find((theme) => theme.id === profile?.theme)?.name || 'SCANME';
+  const copy = profile ? publicCopy(profile) : publicTranslations.ru;
+  const displayName = (profile?.contentType === 'announcement'
+    ? profile.announcementTitle
+    : profile?.fullName) || slug;
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.style.setProperty('--qr-dark', palette.dark);
@@ -1374,22 +1459,26 @@ async function showQrModal(slug, redirectOnClose = false) {
   backdrop.style.setProperty('--qr-accent', palette.accent);
   backdrop.innerHTML = `
     <section class="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title">
-      <button class="modal-close" aria-label="Закрыть">×</button><p class="eyebrow">${escapeHtml(themeName)}</p><h2 id="qr-title">QR-код в стиле публикации</h2><p>Код всегда ведёт на актуальную версию страницы.</p>
+      <button class="modal-close" aria-label="Закрыть">×</button><p class="eyebrow">${escapeHtml(themeName)} · ${QR_CARD_WIDTH_MM} × ${QR_CARD_HEIGHT_MM} мм</p><h2 id="qr-title">QR-карта для печати</h2><p>После ламинации с рамкой около 1 мм получится размер банковской карты.</p>
       <div class="qr-canvas-wrap"><canvas id="qr-canvas"></canvas></div>
       <div class="share-url"><span>${escapeHtml(url)}</span><button class="icon-button" id="copy-url" title="Копировать">${icons.copy}</button></div>
-      <div class="modal-actions"><a class="button button--ghost" href="#/p/${encodeURIComponent(slug)}" target="_blank">${icons.globe} Открыть</a><button class="button button--primary" id="download-qr">${icons.download} Скачать PNG</button></div>
+      <div class="modal-actions modal-actions--qr"><a class="button button--ghost" href="#/p/${encodeURIComponent(slug)}" target="_blank">${icons.globe} Открыть</a><button class="button button--ghost" id="print-qr" type="button">${icons.download} Печать</button><button class="button button--primary" id="download-qr" type="button">${icons.download} PNG 300 DPI</button></div>
     </section>`;
   document.body.append(backdrop);
   const canvas = backdrop.querySelector('#qr-canvas');
-  await QRCode.toCanvas(canvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
-  drawQrBrand(canvas, palette);
+  const qrCanvas = document.createElement('canvas');
+  await QRCode.toCanvas(qrCanvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
+  drawQrBrand(qrCanvas, palette);
+  await document.fonts?.ready;
+  drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
   const close = () => { backdrop.remove(); if (redirectOnClose) window.location.hash = '#/admin'; };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
   backdrop.querySelector('#copy-url').addEventListener('click', async () => { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); });
+  backdrop.querySelector('#print-qr').addEventListener('click', () => printQrBankCard(canvas, `${displayName} — ${copy.digitalCard}`));
   backdrop.querySelector('#download-qr').addEventListener('click', () => {
     const link = document.createElement('a');
-    link.download = `scanme-${slug}-qr.png`;
+    link.download = `scanme-${slug}-qr-card-${QR_CARD_WIDTH_MM}x${QR_CARD_HEIGHT_MM}mm.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   });
