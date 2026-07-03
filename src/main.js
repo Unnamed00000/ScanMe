@@ -769,7 +769,7 @@ function themeCard(theme, selectedTheme) {
   return `<div class="theme-card-shell" data-theme-id="${escapeHtml(theme.id)}"><label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>${manageable ? `<button class="theme-manage-button" type="button" data-theme-id="${escapeHtml(theme.id)}" aria-label="Редактировать оформление ${escapeHtml(theme.name)}" title="Редактировать или удалить">${icons.edit}</button>` : ''}</div>`;
 }
 
-function publicThemeStyle(profile) {
+function publicThemeDeclarations(profile) {
   const headingScale = clampPhotoValue(profile.headingSize, 70, 150, 100) / 100;
   const secondaryScale = clampPhotoValue(profile.secondarySize, 70, 150, 100) / 100;
   const bodyScale = clampPhotoValue(profile.bodySize, 70, 150, 100) / 100;
@@ -801,7 +801,11 @@ function publicThemeStyle(profile) {
     `--text-panel-blur:${clampPhotoValue(profile.textPanelBlur, 0, 30, 6)}px`,
   ];
   if (profile.themeImageUrl) styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
-  return ` style="${styles.join(';')}"`;
+  return styles;
+}
+
+function publicThemeStyle(profile) {
+  return ` style="${publicThemeDeclarations(profile).join(';')}"`;
 }
 
 function clampPhotoValue(value, minimum, maximum, fallback) {
@@ -1314,7 +1318,10 @@ async function renderEditor(slug) {
               ${designRange('textPanelOpacity', 'Видимость фона за текстом', { min: 0, max: 90 })}
               ${designRange('textPanelBlur', 'Размытие фона за текстом', { min: 0, max: 30, suffix: ' px' })}
             </div>
-            <div class="design-live-preview"><small>Предпросмотр имени</small><strong id="heading-size-preview">${escapeHtml(profile.fullName || profile.announcementTitle || 'Имя Фамилия')}</strong></div>
+            <div class="editor-preview-stage">
+              <div class="editor-preview-stage__heading"><b>Предпросмотр всей страницы</b><small>Так визитка будет выглядеть на телефоне</small></div>
+              <main class="public-card editor-phone-preview" id="editor-card-preview"></main>
+            </div>
           </div>
           <div class="theme-picker">
             ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
@@ -1339,30 +1346,23 @@ async function renderEditor(slug) {
 
   const socialList = document.querySelector('#social-links-list');
   const renderSocialRows = () => { socialList.innerHTML = socialRowsHtml(); };
-  document.querySelector('#add-social-button').addEventListener('click', () => showSocialLinkModal(null, (item) => { socialLinks.push(item); renderSocialRows(); }));
+  document.querySelector('#add-social-button').addEventListener('click', () => showSocialLinkModal(null, (item) => { socialLinks.push(item); renderSocialRows(); syncCardPreview(); }));
   socialList.addEventListener('click', (event) => {
     const editButton = event.target.closest('.social-edit');
     const deleteButton = event.target.closest('.social-delete');
     if (editButton) {
       const index = Number(editButton.dataset.index);
-      showSocialLinkModal(socialLinks[index], (item) => { socialLinks[index] = item; renderSocialRows(); });
+      showSocialLinkModal(socialLinks[index], (item) => { socialLinks[index] = item; renderSocialRows(); syncCardPreview(); });
     }
     if (deleteButton) {
       socialLinks.splice(Number(deleteButton.dataset.index), 1);
       renderSocialRows();
+      syncCardPreview();
     }
   });
 
   const form = document.querySelector('#profile-form');
-  const headingPreview = form.querySelector('#heading-size-preview');
-  const headingSizeField = form.querySelector('[name="headingSize"]');
-  const headingFontField = form.querySelector('[name="headingFont"]');
-  const syncHeadingPreview = () => {
-    const source = getContentType() === 'announcement' ? announcementTitleField : nameField;
-    headingPreview.textContent = source?.value.trim() || 'Имя Фамилия';
-    headingPreview.style.fontFamily = fontStacks[headingFontField.value] || fontStacks.unbounded;
-    headingPreview.style.fontSize = `${Math.round(clampPhotoValue(headingSizeField.value, 70, 150, 100) * 0.34)}px`;
-  };
+  const cardPreview = form.querySelector('#editor-card-preview');
   form.querySelectorAll('.design-range input[type="range"]').forEach((range) => {
     const output = form.querySelector(`[data-range-value="${range.name}"]`);
     const sync = () => { if (output) output.textContent = `${range.value}${range.dataset.rangeSuffix || ''}`; };
@@ -1381,6 +1381,60 @@ async function renderEditor(slug) {
   const photoYField = document.querySelector('[name="photoY"]');
   let slugTouched = !isNew;
   const getContentType = () => form.querySelector('[name="contentType"]:checked')?.value || 'card';
+  const previewDraft = () => {
+    const draft = { ...profile, ...Object.fromEntries(new FormData(form)) };
+    const selectedTheme = form.querySelector('[name="theme"]:checked');
+    draft.theme = selectedTheme?.value || 'lime';
+    draft.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+    draft.socialLinks = socialLinks;
+    return draft;
+  };
+  const syncCardPreview = () => {
+    const draft = previewDraft();
+    const copy = publicCopy(draft);
+    const customTheme = Boolean(draft.themeImageUrl);
+    cardPreview.className = `public-card editor-phone-preview theme-${draft.theme || 'lime'} ${customTheme ? 'theme-custom' : ''}`;
+    cardPreview.setAttribute('style', publicThemeDeclarations(draft).join(';'));
+    if (draft.contentType === 'announcement') {
+      cardPreview.classList.add('editor-phone-preview--announcement');
+      cardPreview.innerHTML = `
+        <div class="card-noise"></div>
+        <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><span class="round-button">${icons.share}</span></header>
+        <section class="announcement-content ${draft.announcementImageUrl ? '' : 'announcement-content--no-image'}">
+          ${draft.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(draft.announcementImageUrl)}')"></div>` : ''}
+          <div class="announcement-copy">
+            ${draft.category ? `<span class="announcement-category">${escapeHtml(draft.category)}</span>` : ''}
+            <h1>${escapeHtml(draft.announcementTitle || 'Заголовок объявления')}</h1>
+            ${draft.price ? `<p class="announcement-price">${escapeHtml(draft.price)}</p>` : ''}
+            <p class="announcement-description">${escapeHtml(draft.announcementDescription || 'Описание объявления появится здесь.')}</p>
+            ${draft.address ? `<div class="announcement-meta"><span>${icons.map}${escapeHtml(draft.address)}</span></div>` : ''}
+          </div>
+        </section>
+        <section class="announcement-dock"><div class="announcement-owner"><span>${escapeHtml(getInitials(draft.contactName || draft.company || 'SCANME'))}</span><div><small>${copy.contact}</small><b>${escapeHtml(draft.contactName || draft.company || 'Контакт')}</b></div></div><span class="announcement-cta">${escapeHtml(draft.ctaLabel || copy.contactAction)} ${icons.arrow}</span></section>`;
+      return;
+    }
+    const zoom = clampPhotoValue(draft.photoZoom, 1, 3, 1);
+    const photoX = clampPhotoValue(draft.photoX, 0, 100, 50);
+    const photoY = clampPhotoValue(draft.photoY, 0, 100, 50);
+    const role = [draft.title, draft.company].filter(Boolean).join(' · ');
+    const contactItems = [
+      draft.phone ? { icon: icons.phone, label: copy.call } : null,
+      draft.email ? { icon: icons.mail, label: copy.email } : null,
+      draft.website ? { icon: icons.globe, label: copy.website } : null,
+      ...socialContactItems(draft).map((item) => ({ icon: item.icon, label: item.label })),
+    ].filter(Boolean).slice(0, 6);
+    cardPreview.innerHTML = `
+      <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
+      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><span class="round-button">${icons.share}</span></header>
+      <section class="identity">
+        <div class="portrait-wrap"><div class="portrait ${draft.photoUrl ? 'has-photo' : ''}">${draft.photoUrl ? `<img src="${escapeHtml(draft.photoUrl)}" alt="" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${zoom})">` : escapeHtml(getInitials(draft.fullName || 'Имя Фамилия'))}</div><span class="portrait-status"></span></div>
+        <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(draft.fullName || 'Имя Фамилия')}</h1>
+        ${role ? `<p class="identity__role">${escapeHtml(role)}</p>` : ''}
+        ${draft.bio ? `<p class="identity__bio">${escapeHtml(draft.bio)}</p>` : ''}
+        ${draft.address ? `<p class="identity__location">${icons.map}${escapeHtml(draft.address)}</p>` : ''}
+      </section>
+      <section class="contact-dock"><div class="contact-links">${contactItems.length ? contactItems.map((item) => `<span><i>${item.icon}</i><small>${escapeHtml(item.label)}</small></span>`).join('') : `<span><i>${icons.phone}</i><small>${copy.call}</small></span><span><i>${icons.mail}</i><small>${copy.email}</small></span>`}</div><button class="save-contact" type="button">${icons.plus}<span>${copy.saveContact}</span></button></section>`;
+  };
   const syncContentType = () => {
     const type = getContentType();
     document.querySelectorAll('.card-only').forEach((node) => node.classList.toggle('is-hidden', type !== 'card'));
@@ -1389,7 +1443,7 @@ async function renderEditor(slug) {
     announcementTitleField.required = type === 'announcement';
     announcementDescriptionField.required = type === 'announcement';
     if (!slugTouched) slugField.value = slugify(type === 'announcement' ? announcementTitleField.value : nameField.value);
-    syncHeadingPreview();
+    syncCardPreview();
   };
   form.querySelectorAll('[name="contentType"]').forEach((radio) => radio.addEventListener('change', syncContentType));
   syncContentType();
@@ -1410,6 +1464,7 @@ async function renderEditor(slug) {
       const option = holder.firstElementChild;
       document.querySelector('#add-theme-button').before(option);
       option.querySelector('input').checked = true;
+      syncCardPreview();
     });
   });
 
@@ -1435,6 +1490,7 @@ async function renderEditor(slug) {
         const selected = shell.querySelector('input[name="theme"]')?.checked;
         shell.remove();
         if (selected) form.querySelector('input[name="theme"][value="lime"]')?.click();
+        else syncCardPreview();
       },
     });
   });
@@ -1445,7 +1501,8 @@ async function renderEditor(slug) {
   });
   nameField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'card') slugField.value = slugify(nameField.value); });
   announcementTitleField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'announcement') slugField.value = slugify(announcementTitleField.value); });
-  [nameField, announcementTitleField, headingSizeField, headingFontField].forEach((field) => field.addEventListener('input', syncHeadingPreview));
+  form.addEventListener('input', syncCardPreview);
+  form.addEventListener('change', syncCardPreview);
 
   const updatePhotoPreview = () => {
     const url = photoUrlField.value.trim();
