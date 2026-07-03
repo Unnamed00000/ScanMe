@@ -11,6 +11,7 @@ import {
 } from './catalog.js';
 import {
   ADMIN_EMAIL,
+  deleteTheme,
   getProfile,
   isFirebaseConfigured,
   listProfiles,
@@ -18,6 +19,7 @@ import {
   login,
   logout,
   removeProfile,
+  renameTheme,
   saveProfile,
   uploadTheme,
   watchAuth,
@@ -648,8 +650,9 @@ function publicationState(profile) {
 
 function themeCard(theme, selectedTheme) {
   const custom = Boolean(theme.imageUrl);
+  const manageable = custom && Boolean(theme.fileName || theme.createdAt);
   const style = custom ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}')"` : '';
-  return `<label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>`;
+  return `<div class="theme-card-shell" data-theme-id="${escapeHtml(theme.id)}"><label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>${manageable ? `<button class="theme-manage-button" type="button" data-theme-id="${escapeHtml(theme.id)}" aria-label="Редактировать оформление ${escapeHtml(theme.name)}" title="Редактировать или удалить">${icons.edit}</button>` : ''}</div>`;
 }
 
 function publicThemeStyle(profile) {
@@ -805,6 +808,92 @@ function showThemeUploadModal(onUploaded) {
       toast(message, 'error');
       button.disabled = false;
       button.innerHTML = `${icons.plus} Добавить оформление`;
+    } finally {
+      token = '';
+    }
+  });
+}
+
+function showThemeManageModal(theme, { onRenamed, onDeleted }) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <form class="theme-manage-modal" id="theme-manage-form">
+      <button class="modal-close" type="button" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Оформление</p><h2>Редактировать фон</h2>
+      <div class="theme-manage-preview" style="background-image:linear-gradient(#02050b33,#02050b55),url('${escapeHtml(theme.imageUrl)}')"></div>
+      <label class="field"><span>Название оформления</span><input name="themeName" required maxlength="60" value="${escapeHtml(theme.name)}"></label>
+      <label class="field github-token-field"><span>GitHub-токен</span><input name="githubToken" type="password" required autocomplete="off" placeholder="github_pat_…"><small>Токен используется только для этого изменения и сразу очищается.</small></label>
+      <p class="form-error theme-manage-error" role="alert" aria-live="polite"></p>
+      <div class="theme-manage-actions"><button class="button button--danger" id="delete-theme-button" type="button">${icons.trash} Удалить</button><button class="button button--primary" type="submit">${icons.save} Сохранить название</button></div>
+    </form>`;
+  document.body.append(backdrop);
+  const form = backdrop.querySelector('#theme-manage-form');
+  if (!form) {
+    backdrop.remove();
+    toast('Не удалось открыть управление оформлением.', 'error');
+    return;
+  }
+  const tokenInput = form.elements.namedItem('githubToken');
+  const nameInput = form.elements.namedItem('themeName');
+  const errorNode = form.querySelector('.theme-manage-error');
+  const close = () => backdrop.remove();
+  const showError = (error) => {
+    const message = error instanceof Error && error.message ? error.message : 'Не удалось изменить оформление.';
+    if (errorNode) errorNode.textContent = message;
+    toast(message, 'error');
+  };
+  backdrop.querySelector('.modal-close').addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = form.querySelector('[type="submit"]');
+    let token = tokenInput instanceof HTMLInputElement ? tokenInput.value.trim() : '';
+    button.disabled = true;
+    button.textContent = 'Сохраняем…';
+    if (errorNode) errorNode.textContent = '';
+    try {
+      const updated = await renameTheme({ theme, name: nameInput?.value, token });
+      if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
+      token = '';
+      onRenamed(updated);
+      close();
+      toast('Название оформления изменено');
+    } catch (error) {
+      showError(error);
+      button.disabled = false;
+      button.innerHTML = `${icons.save} Сохранить название`;
+    } finally {
+      token = '';
+    }
+  });
+  form.querySelector('#delete-theme-button').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    if (button.dataset.confirmDelete !== 'true') {
+      button.dataset.confirmDelete = 'true';
+      button.textContent = 'Нажмите ещё раз для удаления';
+      if (errorNode) errorNode.textContent = `Оформление «${theme.name}» будет удалено из GitHub и списка тем.`;
+      return;
+    }
+    let token = tokenInput instanceof HTMLInputElement ? tokenInput.value.trim() : '';
+    if (!token) {
+      showError(new Error('Вставьте GitHub-токен для удаления оформления.'));
+      return;
+    }
+    button.disabled = true;
+    button.textContent = 'Удаляем…';
+    if (errorNode) errorNode.textContent = '';
+    try {
+      await deleteTheme({ theme, token });
+      if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
+      token = '';
+      onDeleted(theme);
+      close();
+      toast('Оформление удалено');
+    } catch (error) {
+      showError(error);
+      button.disabled = false;
+      button.innerHTML = `${icons.trash} Удалить`;
     } finally {
       token = '';
     }
@@ -1147,11 +1236,38 @@ async function renderEditor(slug) {
 
   document.querySelector('#add-theme-button').addEventListener('click', () => {
     showThemeUploadModal((theme) => {
+      customThemes = [theme, ...customThemes.filter((item) => item.id !== theme.id)];
       const holder = document.createElement('div');
       holder.innerHTML = themeCard(theme, theme.id);
       const option = holder.firstElementChild;
       document.querySelector('#add-theme-button').before(option);
       option.querySelector('input').checked = true;
+    });
+  });
+
+  document.querySelector('.theme-picker').addEventListener('click', (event) => {
+    const button = event.target.closest('.theme-manage-button');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const theme = customThemes.find((item) => item.id === button.dataset.themeId);
+    if (!theme) {
+      toast('Оформление не найдено. Обновите страницу.', 'error');
+      return;
+    }
+    const shell = button.closest('.theme-card-shell');
+    showThemeManageModal(theme, {
+      onRenamed: (updated) => {
+        customThemes = customThemes.map((item) => item.id === theme.id ? updated : item);
+        shell.querySelector('.theme-option b').textContent = updated.name;
+        button.setAttribute('aria-label', `Редактировать оформление ${updated.name}`);
+      },
+      onDeleted: () => {
+        customThemes = customThemes.filter((item) => item.id !== theme.id && item.name.toLocaleLowerCase() !== theme.name.toLocaleLowerCase());
+        const selected = shell.querySelector('input[name="theme"]')?.checked;
+        shell.remove();
+        if (selected) form.querySelector('input[name="theme"][value="lime"]')?.click();
+      },
     });
   });
 

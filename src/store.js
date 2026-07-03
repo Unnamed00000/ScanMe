@@ -201,6 +201,15 @@ function base64ToText(value) {
   return new TextDecoder().decode(bytes);
 }
 
+function themeNameKey(value) {
+  return String(value || '').trim().toLocaleLowerCase();
+}
+
+function themeFilePath(theme) {
+  const fileName = String(theme?.fileName || '');
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(fileName) ? `themes/${fileName}` : '';
+}
+
 async function githubRequest(path, token, options = {}, allowNotFound = false) {
   const response = await fetch(`${GITHUB_API}${path}`, {
     ...options,
@@ -284,4 +293,89 @@ export async function uploadTheme({ id, name, blob, token }) {
     body: JSON.stringify({ sha: commit.sha, force: false }),
   });
   return theme;
+}
+
+export async function renameTheme({ theme, name, token }) {
+  const nextName = String(name || '').trim();
+  if (!nextName) throw new Error('Введите название оформления.');
+  if (!isFirebaseConfigured) {
+    const data = readLocal();
+    const themes = data.__themes || {};
+    const current = themes[theme.id];
+    if (!current) throw new Error('Оформление не найдено. Обновите страницу.');
+    Object.entries(themes).forEach(([id, item]) => {
+      if (id !== theme.id && themeNameKey(item.name) === themeNameKey(theme.name)) delete themes[id];
+    });
+    themes[theme.id] = { ...current, name: nextName };
+    data.__themes = themes;
+    writeLocal(data);
+    return themes[theme.id];
+  }
+
+  const githubToken = String(token || '').trim();
+  if (!githubToken) throw new Error('Вставьте GitHub-токен.');
+  const reference = await githubRequest(`/git/ref/heads/${GITHUB_BRANCH}`, githubToken);
+  const parentSha = reference.object.sha;
+  const parentCommit = await githubRequest(`/git/commits/${parentSha}`, githubToken);
+  const manifestFile = await githubRequest(`/contents/themes/custom-themes.json?ref=${GITHUB_BRANCH}`, githubToken, {}, true);
+  const themes = manifestFile?.content ? JSON.parse(base64ToText(manifestFile.content)) : [];
+  const matches = Array.isArray(themes) ? themes.filter((item) => item.id === theme.id || themeNameKey(item.name) === themeNameKey(theme.name)) : [];
+  const current = matches.find((item) => item.id === theme.id) || matches[0];
+  if (!current) throw new Error('Оформление не найдено в GitHub. Обновите страницу.');
+  const renamed = { ...current, name: nextName };
+  const removed = matches.filter((item) => item.id !== current.id);
+  const manifest = [renamed, ...themes.filter((item) => !matches.some((match) => match.id === item.id))];
+  const manifestBlob = await githubRequest('/git/blobs', githubToken, {
+    method: 'POST', body: JSON.stringify({ content: textToBase64(`${JSON.stringify(manifest, null, 2)}\n`), encoding: 'base64' }),
+  });
+  const treeEntries = [{ path: 'themes/custom-themes.json', mode: '100644', type: 'blob', sha: manifestBlob.sha }];
+  removed.map(themeFilePath).filter(Boolean).forEach((path) => treeEntries.push({ path, mode: '100644', type: 'blob', sha: null }));
+  const tree = await githubRequest('/git/trees', githubToken, {
+    method: 'POST', body: JSON.stringify({ base_tree: parentCommit.tree.sha, tree: treeEntries }),
+  });
+  const commit = await githubRequest('/git/commits', githubToken, {
+    method: 'POST', body: JSON.stringify({ message: `Rename theme: ${theme.name} → ${nextName}`, tree: tree.sha, parents: [parentSha] }),
+  });
+  await githubRequest(`/git/refs/heads/${GITHUB_BRANCH}`, githubToken, {
+    method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }),
+  });
+  return renamed;
+}
+
+export async function deleteTheme({ theme, token }) {
+  if (!isFirebaseConfigured) {
+    const data = readLocal();
+    const themes = data.__themes || {};
+    Object.entries(themes).forEach(([id, item]) => {
+      if (id === theme.id || themeNameKey(item.name) === themeNameKey(theme.name)) delete themes[id];
+    });
+    data.__themes = themes;
+    writeLocal(data);
+    return;
+  }
+
+  const githubToken = String(token || '').trim();
+  if (!githubToken) throw new Error('Вставьте GitHub-токен.');
+  const reference = await githubRequest(`/git/ref/heads/${GITHUB_BRANCH}`, githubToken);
+  const parentSha = reference.object.sha;
+  const parentCommit = await githubRequest(`/git/commits/${parentSha}`, githubToken);
+  const manifestFile = await githubRequest(`/contents/themes/custom-themes.json?ref=${GITHUB_BRANCH}`, githubToken, {}, true);
+  const themes = manifestFile?.content ? JSON.parse(base64ToText(manifestFile.content)) : [];
+  const removed = Array.isArray(themes) ? themes.filter((item) => item.id === theme.id || themeNameKey(item.name) === themeNameKey(theme.name)) : [];
+  if (!removed.length) throw new Error('Оформление уже удалено. Обновите страницу.');
+  const manifest = themes.filter((item) => !removed.some((match) => match.id === item.id));
+  const manifestBlob = await githubRequest('/git/blobs', githubToken, {
+    method: 'POST', body: JSON.stringify({ content: textToBase64(`${JSON.stringify(manifest, null, 2)}\n`), encoding: 'base64' }),
+  });
+  const treeEntries = [{ path: 'themes/custom-themes.json', mode: '100644', type: 'blob', sha: manifestBlob.sha }];
+  [...new Set(removed.map(themeFilePath).filter(Boolean))].forEach((path) => treeEntries.push({ path, mode: '100644', type: 'blob', sha: null }));
+  const tree = await githubRequest('/git/trees', githubToken, {
+    method: 'POST', body: JSON.stringify({ base_tree: parentCommit.tree.sha, tree: treeEntries }),
+  });
+  const commit = await githubRequest('/git/commits', githubToken, {
+    method: 'POST', body: JSON.stringify({ message: `Delete theme: ${theme.name}`, tree: tree.sha, parents: [parentSha] }),
+  });
+  await githubRequest(`/git/refs/heads/${GITHUB_BRANCH}`, githubToken, {
+    method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }),
+  });
 }
