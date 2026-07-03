@@ -231,9 +231,11 @@ function bindPwaInstall(profile = null) {
 
 function renderCatalog() {
   const catalogThemes = themeOptions.map((theme) => `
-    <article class="catalog-theme theme-option theme-option--${theme.id}">
+    <label class="catalog-theme theme-option theme-option--${theme.id}">
+      <input type="radio" name="catalogTheme" value="${theme.id}" ${theme.id === 'lime' ? 'checked' : ''}>
       <span><i></i><b>${escapeHtml(theme.name)}</b></span>
-    </article>`).join('');
+    </label>`).join('');
+  const catalogFontSelect = (name, label, selected) => `<label class="catalog-control"><span>${label}</span><select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${font.id === selected ? 'selected' : ''}>${font.name}</option>`).join('')}</select></label>`;
   app.innerHTML = `
     <main class="catalog-page">
       <header class="catalog-header">
@@ -252,17 +254,101 @@ function renderCatalog() {
         <article><span>03</span><b>Полный контроль</b><p>Публикация, таймер отключения, языки, шрифты и разные форматы.</p></article>
       </section>
       <section class="catalog-gallery" id="catalog-themes">
-        <div class="catalog-section-heading"><div><p class="eyebrow">Оформления</p><h2>Выберите свой характер</h2></div><p>Цвета, автомобили, животные, природа и сезонные стили.</p></div>
+        <div class="catalog-section-heading"><div><p class="eyebrow">Шаг 1 · оформление</p><h2>Выберите свой характер</h2></div><p>Нажмите на любое оформление — предпросмотр ниже изменится сразу.</p></div>
         <div class="catalog-theme-grid">${catalogThemes}</div>
+        <section class="catalog-configurator">
+          <div class="catalog-preview-column">
+            <p class="eyebrow">Живой предпросмотр</p>
+            <div class="public-card catalog-live-card theme-lime" id="catalog-live-card">
+              <div class="card-noise"></div><div class="orb orb--one"></div>
+              <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="Поделиться">${icons.share}</button></header>
+              <section class="identity">
+                <div class="portrait-wrap"><div class="portrait" id="catalog-preview-initials">АМ</div><i class="portrait-status"></i></div>
+                <p class="identity__label">Цифровая визитка</p>
+                <h1 id="catalog-preview-name">Адам Маргоев</h1>
+                <p class="identity__role" id="catalog-preview-role">Специалист · SCANME</p>
+                <p class="identity__bio">Контакты, ссылки и нужная информация всегда под рукой.</p>
+              </section>
+              <section class="contact-dock"><div class="contact-links"><span><i>${icons.phone}</i><small>Позвонить</small></span><span><i>${icons.mail}</i><small>Email</small></span><span><i>${icons.globe}</i><small>Сайт</small></span></div><button class="save-contact" type="button">${icons.plus}<span>Сохранить контакт</span></button></section>
+            </div>
+          </div>
+          <div class="catalog-controls">
+            <div class="catalog-config-heading"><p class="eyebrow">Шаг 2 · текст и шрифты</p><h2>Настройте каждый блок</h2><p>Все изменения видны на макете без перезагрузки.</p></div>
+            <label class="catalog-control"><span>Имя на визитке</span><input name="catalogFullName" value="Адам Маргоев" maxlength="70" placeholder="Имя и фамилия"></label>
+            <label class="catalog-control"><span>Должность или компания</span><input name="catalogRole" value="Специалист · SCANME" maxlength="90" placeholder="Должность · Компания"></label>
+            ${catalogFontSelect('catalogHeadingFont', 'Шрифт имени', 'unbounded')}
+            ${catalogFontSelect('catalogSecondaryFont', 'Шрифт должности', 'manrope')}
+            ${catalogFontSelect('catalogBodyFont', 'Шрифт описания', 'manrope')}
+            ${catalogFontSelect('catalogContactFont', 'Шрифт контактов и кнопки', 'manrope')}
+          </div>
+        </section>
+        <section class="catalog-order-section">
+          <div class="catalog-order-copy"><p class="eyebrow">Шаг 3 · заказ</p><h2>Отправьте выбранный вариант</h2><p>Тема, шрифты и текст автоматически попадут в письмо. Останется только отправить его.</p></div>
+          <form class="catalog-order-form" id="catalog-order-form">
+            <label class="catalog-control"><span>Ваше имя *</span><input name="customerName" required maxlength="70" placeholder="Как к вам обращаться"></label>
+            <label class="catalog-control"><span>Телефон, WhatsApp или Telegram *</span><input name="customerContact" required maxlength="100" placeholder="Например, +45… или @username"></label>
+            <label class="catalog-control catalog-control--wide"><span>Комментарий</span><textarea name="customerNote" rows="4" maxlength="800" placeholder="Какие контакты и информацию добавить на визитку"></textarea></label>
+            <button class="button button--catalog-order" type="submit">${icons.mail} Отправить заказ</button>
+            <small>Откроется ваше почтовое приложение с уже заполненным заказом.</small>
+          </form>
+        </section>
       </section>
       <footer class="catalog-footer"><a class="catalog-brand" href="#/catalog"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a><p>Цифровые визитки и объявления с QR-кодом.</p></footer>
     </main>`;
   document.title = 'Каталог SCANME — цифровые визитки';
   configureAdminPwa();
+  const liveCard = document.querySelector('#catalog-live-card');
+  const nameInput = document.querySelector('[name="catalogFullName"]');
+  const roleInput = document.querySelector('[name="catalogRole"]');
+  const fontFields = {
+    heading: document.querySelector('[name="catalogHeadingFont"]'),
+    secondary: document.querySelector('[name="catalogSecondaryFont"]'),
+    body: document.querySelector('[name="catalogBodyFont"]'),
+    contact: document.querySelector('[name="catalogContactFont"]'),
+  };
+  const syncCatalogPreview = () => {
+    const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
+    themeOptions.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
+    liveCard.classList.add(`theme-${selectedTheme}`);
+    liveCard.style.setProperty('--font-heading', fontStacks[fontFields.heading.value]);
+    liveCard.style.setProperty('--font-secondary', fontStacks[fontFields.secondary.value]);
+    liveCard.style.setProperty('--font-body', fontStacks[fontFields.body.value]);
+    liveCard.style.setProperty('--font-contact', fontStacks[fontFields.contact.value]);
+    const fullName = nameInput.value.trim() || 'Ваше имя';
+    document.querySelector('#catalog-preview-name').textContent = fullName;
+    document.querySelector('#catalog-preview-role').textContent = roleInput.value.trim() || 'Должность · Компания';
+    document.querySelector('#catalog-preview-initials').textContent = getInitials(fullName) || 'Я';
+  };
+  document.querySelectorAll('[name="catalogTheme"]').forEach((field) => field.addEventListener('change', syncCatalogPreview));
+  [nameInput, roleInput, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
+  syncCatalogPreview();
   document.querySelector('#share-catalog').addEventListener('click', async () => {
     const data = { title: 'Каталог SCANME', text: 'Цифровые визитки и объявления с QR-кодом', url: window.location.href };
     if (navigator.share) await navigator.share(data).catch(() => {});
     else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка на каталог скопирована'); }
+  });
+  document.querySelector('#catalog-order-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
+    const themeName = themeOptions.find((theme) => theme.id === selectedTheme)?.name || selectedTheme;
+    const fontName = (field) => fontOptions.find((font) => font.id === field.value)?.name || field.value;
+    const subject = `Заказ визитки SCANME — ${data.get('customerName')}`;
+    const body = [
+      'Новый заказ из каталога SCANME', '',
+      `Клиент: ${data.get('customerName')}`,
+      `Контакт: ${data.get('customerContact')}`,
+      `Имя на визитке: ${nameInput.value.trim() || 'не указано'}`,
+      `Должность / компания: ${roleInput.value.trim() || 'не указано'}`,
+      `Оформление: ${themeName}`,
+      `Шрифт имени: ${fontName(fontFields.heading)}`,
+      `Шрифт должности: ${fontName(fontFields.secondary)}`,
+      `Шрифт описания: ${fontName(fontFields.body)}`,
+      `Шрифт контактов: ${fontName(fontFields.contact)}`,
+      '', `Комментарий: ${data.get('customerNote') || 'нет'}`,
+    ].join('\n');
+    window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    toast('Заказ подготовлен — отправьте письмо в почтовом приложении');
   });
 }
 
