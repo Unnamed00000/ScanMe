@@ -3,6 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   function isAdmin() {
     return request.auth != null
+      && request.auth.uid == 'sGTcnEmSuwftBzXuCwj3ltACj5I3'
       && request.auth.token.email == 'adam.margoev@gmail.com';
   }
 
