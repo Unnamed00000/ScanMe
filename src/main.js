@@ -714,13 +714,22 @@ function showThemeUploadModal(onUploaded) {
       </div>
       <label class="field github-token-field"><span>GitHub-токен</span><input name="githubToken" type="password" required autocomplete="off" placeholder="github_pat_…"><small>Нужен fine-grained token: репозиторий ScanMe → Contents: Read and write. Токен не сохраняется в браузере и очищается после загрузки. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Создать токен</a></small></label>
       <p class="theme-upload-hint">Фон автоматически обрежется до 1200 × 1600. Изображение и каталог оформлений сохранятся одним коммитом в папке <b>themes/</b> на GitHub.</p>
+      <p class="form-error theme-upload-error" role="alert" aria-live="polite"></p>
       <button class="button button--primary button--wide" type="submit">${icons.plus} Сохранить в GitHub</button>
     </form>`;
   document.body.append(backdrop);
+  const form = backdrop.querySelector('#theme-upload-form');
+  if (!form) {
+    backdrop.remove();
+    toast('Не удалось открыть форму добавления оформления. Обновите страницу и попробуйте снова.', 'error');
+    return;
+  }
   const preview = backdrop.querySelector('.theme-upload-preview');
   const fileInput = backdrop.querySelector('[name="themeFile"]');
   const urlInput = backdrop.querySelector('[name="imageUrl"]');
   const nameInput = backdrop.querySelector('[name="themeName"]');
+  const tokenInput = form.elements.namedItem('githubToken');
+  const errorNode = form.querySelector('.theme-upload-error');
   const showPreview = (url) => {
     preview.style.backgroundImage = `url('${url.replace(/'/g, '%27')}')`;
     preview.classList.add('has-image');
@@ -743,17 +752,29 @@ function showThemeUploadModal(onUploaded) {
   };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
-  backdrop.querySelector('#theme-upload-form').addEventListener('submit', async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const button = event.currentTarget.querySelector('[type="submit"]');
+    const submittedForm = event.currentTarget;
+    if (!(submittedForm instanceof HTMLFormElement)) {
+      toast('Форма загрузки недоступна. Закройте окно и попробуйте снова.', 'error');
+      return;
+    }
+    const button = submittedForm.querySelector('[type="submit"]');
+    if (!button) {
+      toast('Не удалось запустить загрузку оформления. Обновите страницу и попробуйте снова.', 'error');
+      return;
+    }
     button.disabled = true;
     button.textContent = 'Подготавливаем и загружаем…';
+    if (errorNode) errorNode.textContent = '';
+    let token = '';
     try {
-      const formData = new FormData(event.currentTarget);
-      const name = formData.get('themeName').trim();
-      const token = formData.get('githubToken').trim();
+      const formData = new FormData(submittedForm);
+      const name = String(formData.get('themeName') || '').trim();
+      token = String(formData.get('githubToken') || '').trim();
+      formData.delete('githubToken');
       const selectedFile = formData.get('themeFile');
-      const imageUrl = formData.get('imageUrl').trim();
+      const imageUrl = String(formData.get('imageUrl') || '').trim();
       let source = selectedFile?.size ? selectedFile : null;
       if (!source && imageUrl) {
         let response;
@@ -771,14 +792,21 @@ function showThemeUploadModal(onUploaded) {
       const id = `custom-${slugify(name) || 'theme'}-${Date.now().toString(36)}`;
       const blob = await resizeThemeImage(source);
       const theme = await uploadTheme({ id, name, blob, token });
-      event.currentTarget.elements.githubToken.value = '';
-      onUploaded(theme);
+      if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
+      token = '';
+      if (typeof onUploaded === 'function') onUploaded(theme);
       close();
       toast('Оформление сохранено в themes/ на GitHub');
     } catch (error) {
-      toast(error.message, 'error');
+      const message = error instanceof Error && error.message
+        ? error.message
+        : 'Не удалось добавить оформление. Проверьте изображение, токен и подключение к интернету.';
+      if (errorNode) errorNode.textContent = message;
+      toast(message, 'error');
       button.disabled = false;
       button.innerHTML = `${icons.plus} Добавить оформление`;
+    } finally {
+      token = '';
     }
   });
 }
