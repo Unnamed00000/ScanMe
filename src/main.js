@@ -1,6 +1,15 @@
 import QRCode from 'qrcode';
 import './styles.css';
 import {
+  catalogCurrencies,
+  catalogLanguages,
+  catalogText,
+  detectCatalogLanguage,
+  fetchCatalogRates,
+  formatCatalogPrice,
+  saveCatalogLanguage,
+} from './catalog.js';
+import {
   ADMIN_EMAIL,
   getProfile,
   isFirebaseConfigured,
@@ -18,6 +27,11 @@ import { escapeHtml, getInitials, icons, profileUrl, safeUrl, slugify, toast } f
 const app = document.querySelector('#app');
 let currentUser = null;
 let deferredInstallPrompt = null;
+let catalogDraft = {
+  language: '', cardLanguage: 'en', currency: 'DKK', plan: 'monthly', theme: 'lime',
+  fullName: 'Имя Фамилия', role: '', headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
+};
+let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
 
 const serviceWorkerReady = 'serviceWorker' in navigator
   ? navigator.serviceWorker.register('/ScanMe/sw.js', { scope: '/ScanMe/' }).then(() => navigator.serviceWorker.ready).catch(() => null)
@@ -81,6 +95,11 @@ const catalogThemeImages = {
   lion: '/ScanMe/themes/golden-lion.png', wolf: '/ScanMe/themes/silver-wolf.png', eagle: '/ScanMe/themes/golden-eagle.png',
   mountains: '/ScanMe/themes/alpine-mountains.png', forest: '/ScanMe/themes/emerald-forest.png', winter: '/ScanMe/themes/winter-night.png',
   autumn: '/ScanMe/themes/autumn-fire.png', spring: '/ScanMe/themes/spring-bloom.png', romantic: '/ScanMe/themes/romantic-roses.png',
+};
+
+const englishCatalogThemeNames = {
+  car: 'Midnight car', landrover: 'Land Rover Discovery', tayotayaris: 'Toyota Yaris Aslan', lion: 'Golden lion', wolf: 'Silver wolf', eagle: 'Golden eagle',
+  mountains: 'Alpine mountains', forest: 'Emerald forest', winter: 'Winter night', autumn: 'Autumn fire', spring: 'Spring garden', romantic: 'Romantic evening',
 };
 
 function qrPalette(theme) {
@@ -173,7 +192,7 @@ function drawOrderBrand(context, palette) {
   context.fillText('SCANME', 164, 113);
 }
 
-async function createOrderCardImage({ theme, fullName, role, fonts }) {
+async function createOrderCardImage({ theme, fullName, role, fonts, copy, description }) {
   await document.fonts?.ready;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -198,7 +217,7 @@ async function createOrderCardImage({ theme, fullName, role, fonts }) {
   context.fillStyle = 'rgba(255,255,255,.62)';
   context.font = "700 22px 'Manrope', sans-serif";
   context.textAlign = 'right';
-  context.fillText('ЦИФРОВАЯ ВИЗИТКА', 1010, 108);
+  context.fillText(String(copy.digitalCard).toUpperCase(), 1010, 108);
 
   roundedCanvasRect(context, 405, 235, 270, 270, 76);
   context.fillStyle = palette.accent;
@@ -210,7 +229,7 @@ async function createOrderCardImage({ theme, fullName, role, fonts }) {
 
   context.fillStyle = palette.accent;
   context.font = `700 22px ${canvasFontFamily(fonts.secondary)}`;
-  context.fillText('ПЕРСОНАЛЬНАЯ СТРАНИЦА', 540, 585);
+  context.fillText(String(copy.digitalCard).toUpperCase(), 540, 585);
   context.fillStyle = '#fff';
   fitCanvasText(context, fullName, 700, 88, 48, 900, canvasFontFamily(fonts.heading));
   context.fillText(fullName, 540, 690);
@@ -219,9 +238,9 @@ async function createOrderCardImage({ theme, fullName, role, fonts }) {
   context.fillText(role, 540, 756);
   context.fillStyle = 'rgba(255,255,255,.56)';
   context.font = `500 27px ${canvasFontFamily(fonts.body)}`;
-  context.fillText('Контакты, ссылки и нужная информация всегда под рукой.', 540, 832);
+  context.fillText(description, 540, 832);
 
-  const contactLabels = ['ПОЗВОНИТЬ', 'EMAIL', 'САЙТ'];
+  const contactLabels = [copy.call, copy.email, copy.website].map((label) => String(label).toUpperCase());
   contactLabels.forEach((label, index) => {
     const x = 238 + index * 302;
     roundedCanvasRect(context, x - 68, 902, 136, 136, 36);
@@ -232,7 +251,7 @@ async function createOrderCardImage({ theme, fullName, role, fonts }) {
   });
   roundedCanvasRect(context, 250, 1132, 580, 82, 25);
   context.fillStyle = palette.accent; context.fill();
-  context.fillStyle = palette.dark; context.font = `800 23px ${canvasFontFamily(fonts.contact)}`; context.fillText('СОХРАНИТЬ КОНТАКТ', 540, 1183);
+  context.fillStyle = palette.dark; context.font = `800 23px ${canvasFontFamily(fonts.contact)}`; context.fillText(String(copy.saveContact).toUpperCase(), 540, 1183);
   context.fillStyle = 'rgba(255,255,255,.38)'; context.font = "600 16px 'Manrope', sans-serif"; context.fillText('SCANME · ПРЕДПРОСМОТР ЗАКАЗА', 540, 1292);
 
   const blob = await new Promise((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Не удалось создать изображение карточки.')), 'image/png', 1));
@@ -246,6 +265,51 @@ const languageOptions = [
   { id: 'de', name: 'Deutsch' },
   { id: 'ka', name: 'ქართული' },
 ];
+
+const socialNetworkOptions = [
+  { id: 'instagram', name: 'Instagram', icon: 'IG', base: 'https://instagram.com/' },
+  { id: 'facebook', name: 'Facebook', icon: 'f', base: 'https://facebook.com/' },
+  { id: 'tiktok', name: 'TikTok', icon: 'TT', base: 'https://tiktok.com/@' },
+  { id: 'x', name: 'X / Twitter', icon: 'X', base: 'https://x.com/' },
+  { id: 'telegram', name: 'Telegram', icon: 'TG', base: 'https://t.me/' },
+  { id: 'whatsapp', name: 'WhatsApp', icon: 'WA', base: 'https://wa.me/' },
+  { id: 'youtube', name: 'YouTube', icon: 'YT', base: 'https://youtube.com/@' },
+  { id: 'linkedin', name: 'LinkedIn', icon: 'in', base: 'https://linkedin.com/in/' },
+  { id: 'snapchat', name: 'Snapchat', icon: 'SC', base: 'https://snapchat.com/add/' },
+  { id: 'discord', name: 'Discord', icon: 'DS', base: 'https://discord.com/users/' },
+  { id: 'website', name: 'Website / личный сайт', icon: 'WWW', base: '' },
+  { id: 'pinterest', name: 'Pinterest', icon: 'P', base: 'https://pinterest.com/' },
+  { id: 'github', name: 'GitHub', icon: 'GH', base: 'https://github.com/' },
+];
+
+function socialNetwork(id) {
+  return socialNetworkOptions.find((network) => network.id === id) || socialNetworkOptions.find((network) => network.id === 'website');
+}
+
+function socialHref(id, value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return safeUrl(raw);
+  if (id === 'whatsapp') return `https://wa.me/${raw.replace(/\D/g, '')}`;
+  if (id === 'website') return safeUrl(raw);
+  const username = raw.replace(/^@/, '').replace(/^\/+|\/+$/g, '');
+  return `${socialNetwork(id).base}${username}`;
+}
+
+function initialSocialLinks(profile) {
+  const links = Array.isArray(profile.socialLinks) ? profile.socialLinks.filter((item) => item?.network && item?.value).map((item) => ({ network: item.network, value: String(item.value) })) : [];
+  [['website', profile.website], ['telegram', profile.telegram], ['whatsapp', profile.whatsapp]].forEach(([network, value]) => {
+    if (value && !links.some((item) => item.network === network)) links.push({ network, value });
+  });
+  return links;
+}
+
+function socialContactItems(profile) {
+  return initialSocialLinks(profile).map((item) => {
+    const network = socialNetwork(item.network);
+    return { id: item.network, value: item.value, href: socialHref(item.network, item.value), label: network.name, icon: `<b>${escapeHtml(network.icon)}</b>` };
+  }).filter((item) => item.href);
+}
 
 const fontOptions = [
   { id: 'manrope', name: 'Manrope — современный' },
@@ -347,54 +411,71 @@ function bindPwaInstall(profile = null) {
 }
 
 function renderCatalog() {
+  if (!catalogDraft.language) catalogDraft.language = detectCatalogLanguage();
+  const language = catalogDraft.language;
+  const t = catalogText(language);
+  const cardCopy = publicTranslations[catalogDraft.cardLanguage] || publicTranslations.en;
+  const plans = {
+    monthly: { regular: 39, first: 19.5, label: t.monthly, period: t.perMonth },
+    yearly: { regular: 390, first: 195, label: t.yearly, period: t.perYear },
+  };
   const catalogThemes = themeOptions.map((theme) => `
     <label class="catalog-theme theme-option theme-option--${theme.id}">
-      <input type="radio" name="catalogTheme" value="${theme.id}" ${theme.id === 'lime' ? 'checked' : ''}>
-      <span><i></i><b>${escapeHtml(theme.name)}</b></span>
+      <input type="radio" name="catalogTheme" value="${theme.id}" ${catalogDraft.theme === theme.id ? 'checked' : ''}>
+      <span><i></i><b>${escapeHtml(language === 'ru' ? theme.name : (englishCatalogThemeNames[theme.id] || theme.name))}</b></span>
     </label>`).join('');
-  const catalogFontSelect = (name, label, selected) => `<label class="catalog-control"><span>${label}</span><select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${font.id === selected ? 'selected' : ''}>${font.name}</option>`).join('')}</select></label>`;
+  const catalogFontSelect = (name, label, selected) => `<label class="catalog-control"><span>${label}</span><select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${font.id === selected ? 'selected' : ''}>${font.name.split(' — ')[0]}</option>`).join('')}</select></label>`;
   app.innerHTML = `
     <main class="catalog-page">
       <header class="catalog-header">
         <a class="catalog-brand" href="#/catalog" aria-label="Каталог SCANME"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a>
+        <label class="catalog-language"><span>${t.language}</span><select id="catalog-language">${catalogLanguages.map((item) => `<option value="${item.id}" ${item.id === language ? 'selected' : ''}>${item.label}</option>`).join('')}</select></label>
       </header>
       <section class="catalog-hero">
-        <p class="eyebrow">Соберите свою визитку</p>
-        <h1>Выберите. Настройте.<br><em>Сразу увидьте.</em></h1>
-        <p>Выберите оформление и шрифты, введите своё имя и отправьте готовый вариант одним заказом.</p>
-        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-themes">Начать создание ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} Поделиться</button></div>
+        <p class="eyebrow">${t.heroEyebrow}</p>
+        <h1>${t.heroTitle}<br><em>${t.heroAccent}</em></h1>
+        <p>${t.heroText}</p>
+        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-pricing">${t.start} ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} ${t.share}</button></div>
       </section>
       <section class="catalog-gallery" id="catalog-themes">
-        <div class="catalog-section-heading"><div><p class="eyebrow">Шаг 1 · оформление</p><h2>Выберите свой характер</h2></div><p>Нажмите на любое оформление — предпросмотр ниже изменится сразу.</p></div>
+        <section class="catalog-pricing" id="catalog-pricing">
+          <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div><p>${t.pricingHelp}</p></div>
+          <div class="catalog-price-toolbar"><label><span>${t.currency}</span><select id="catalog-currency">${catalogCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency === 'TRX' ? 'TRX / TRON' : currency}</option>`).join('')}</select></label><small id="catalog-rate-status">${t.rateLoading}</small></div>
+          <div class="catalog-plan-grid">
+            ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan"><input type="radio" name="catalogPlan" value="${id}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${t.save}</em><b>${plan.label}</b><strong data-plan="${id}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${t.firstPayment} · ${plan.period}</small><del><span data-plan="${id}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${plan.period}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
+          </div>
+        </section>
+        <div class="catalog-section-heading catalog-design-heading"><div><p class="eyebrow">${t.designStep}</p><h2>${t.designTitle}</h2></div><p>${t.designHelp}</p></div>
         <div class="catalog-theme-grid">${catalogThemes}</div>
         <section class="catalog-configurator">
           <div class="catalog-preview-column">
-            <p class="eyebrow">Живой предпросмотр</p>
-            <div class="public-card catalog-live-card theme-lime" id="catalog-live-card">
+            <p class="eyebrow">${t.livePreview}</p>
+            <div class="public-card catalog-live-card theme-${catalogDraft.theme}" id="catalog-live-card">
               <div class="card-noise"></div><div class="orb orb--one"></div>
-              <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="Поделиться">${icons.share}</button></header>
+              <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="${t.share}">${icons.share}</button></header>
               <section class="identity">
-                <div class="portrait-wrap"><div class="portrait" id="catalog-preview-initials">АМ</div><i class="portrait-status"></i></div>
-                <p class="identity__label">Цифровая визитка</p>
-                <h1 id="catalog-preview-name">Адам Маргоев</h1>
-                <p class="identity__role" id="catalog-preview-role">Специалист · SCANME</p>
-                <p class="identity__bio">Контакты, ссылки и нужная информация всегда под рукой.</p>
+                <div class="portrait-wrap"><div class="portrait" id="catalog-preview-initials">ИФ</div><i class="portrait-status"></i></div>
+                <p class="identity__label" id="catalog-preview-label">${cardCopy.digitalCard}</p>
+                <h1 id="catalog-preview-name">${escapeHtml(catalogDraft.fullName)}</h1>
+                <p class="identity__role" id="catalog-preview-role">${escapeHtml(catalogDraft.role || t.demoRole)}</p>
+                <p class="identity__bio" id="catalog-preview-bio">${catalogText(catalogDraft.cardLanguage).demoBio}</p>
               </section>
-              <section class="contact-dock"><div class="contact-links"><span><i>${icons.phone}</i><small>Позвонить</small></span><span><i>${icons.mail}</i><small>Email</small></span><span><i>${icons.globe}</i><small>Сайт</small></span></div><button class="save-contact" type="button">${icons.plus}<span>Сохранить контакт</span></button></section>
+              <section class="contact-dock"><div class="contact-links"><span><i>${icons.phone}</i><small id="catalog-preview-call">${cardCopy.call}</small></span><span><i>${icons.mail}</i><small id="catalog-preview-email">${cardCopy.email}</small></span><span><i>${icons.globe}</i><small id="catalog-preview-website">${cardCopy.website}</small></span></div><button class="save-contact" type="button">${icons.plus}<span id="catalog-preview-save">${cardCopy.saveContact}</span></button></section>
             </div>
           </div>
           <div class="catalog-controls">
-            <div class="catalog-config-heading"><p class="eyebrow">Шаг 2 · текст и шрифты</p><h2>Настройте каждый блок</h2><p>Все изменения видны на макете без перезагрузки.</p></div>
-            <label class="catalog-control"><span>Имя на визитке</span><input name="catalogFullName" value="Адам Маргоев" maxlength="70" placeholder="Имя и фамилия"></label>
-            <label class="catalog-control"><span>Должность или компания</span><input name="catalogRole" value="Специалист · SCANME" maxlength="90" placeholder="Должность · Компания"></label>
-            ${catalogFontSelect('catalogHeadingFont', 'Шрифт имени', 'unbounded')}
-            ${catalogFontSelect('catalogSecondaryFont', 'Шрифт должности', 'manrope')}
-            ${catalogFontSelect('catalogBodyFont', 'Шрифт описания', 'manrope')}
-            ${catalogFontSelect('catalogContactFont', 'Шрифт контактов и кнопки', 'manrope')}
+            <div class="catalog-config-heading"><p class="eyebrow">${t.textStep}</p><h2>${t.textTitle}</h2><p>${t.textHelp}</p></div>
+            <label class="catalog-control"><span>${t.cardLanguage}</span><select name="catalogCardLanguage">${languageOptions.map((item) => `<option value="${item.id}" ${catalogDraft.cardLanguage === item.id ? 'selected' : ''}>${item.name}</option>`).join('')}</select><small>${t.cardLanguageHelp}</small></label>
+            <label class="catalog-control"><span>${t.fullName}</span><input name="catalogFullName" value="${escapeHtml(catalogDraft.fullName)}" maxlength="70" placeholder="Имя Фамилия"></label>
+            <label class="catalog-control"><span>${t.role}</span><input name="catalogRole" value="${escapeHtml(catalogDraft.role || t.demoRole)}" maxlength="90" placeholder="${escapeHtml(t.demoRole)}"></label>
+            ${catalogFontSelect('catalogHeadingFont', t.headingFont, catalogDraft.headingFont)}
+            ${catalogFontSelect('catalogSecondaryFont', t.secondaryFont, catalogDraft.secondaryFont)}
+            ${catalogFontSelect('catalogBodyFont', t.bodyFont, catalogDraft.bodyFont)}
+            ${catalogFontSelect('catalogContactFont', t.contactFont, catalogDraft.contactFont)}
           </div>
         </section>
         <section class="catalog-order-section">
-          <div class="catalog-order-copy"><p class="eyebrow">Шаг 3 · заказ</p><h2>Отправьте выбранный вариант</h2><p>Тема, шрифты и текст автоматически попадут в письмо. Останется только отправить его.</p></div>
+          <div class="catalog-order-copy"><p class="eyebrow">${t.orderStep}</p><h2>${t.orderTitle}</h2><p>${t.orderHelp}</p></div>
           <form class="catalog-order-form" id="catalog-order-form" action="https://formsubmit.co/${ADMIN_EMAIL}" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="_subject" value="Новый заказ визитки SCANME">
             <input type="hidden" name="_template" value="table">
@@ -402,18 +483,19 @@ function renderCatalog() {
             <input type="hidden" name="_url" value="https://unnamed00000.github.io/ScanMe/#/catalog">
             <input class="catalog-honey" type="text" name="_honey" tabindex="-1" autocomplete="off">
             <input id="catalog-order-attachment" type="file" name="attachment" accept="image/png" hidden>
-            <label class="catalog-control"><span>Ваше имя *</span><input name="Клиент" required maxlength="70" placeholder="Как к вам обращаться"></label>
-            <label class="catalog-control"><span>Email для ответа *</span><input name="email" type="email" required maxlength="120" placeholder="name@example.com"></label>
-            <label class="catalog-control catalog-control--wide"><span>Телефон, WhatsApp или Telegram</span><input name="Контакт" maxlength="100" placeholder="Например, +45… или @username"></label>
-            <label class="catalog-control catalog-control--wide"><span>Комментарий</span><textarea name="Комментарий" rows="4" maxlength="800" placeholder="Какие контакты и информацию добавить на визитку"></textarea></label>
-            <button class="button button--catalog-order" type="submit">${icons.mail} Отправить заказ</button>
-            <small>Вы получите текст заказа и PNG-картинку выбранной визитки. При первой заявке владелец сайта подтвердит получение писем.</small>
+            <label class="catalog-control"><span>${t.customerName}</span><input name="Клиент" required maxlength="70" placeholder="${escapeHtml(t.customerNamePlaceholder)}"></label>
+            <label class="catalog-control"><span>${t.customerEmail}</span><input name="email" type="email" required maxlength="120" placeholder="name@example.com"></label>
+            <label class="catalog-control catalog-control--wide"><span>${t.customerContact}</span><input name="Контакт" maxlength="100" placeholder="${escapeHtml(t.contactPlaceholder)}"></label>
+            <label class="catalog-control catalog-control--wide"><span>${t.comment}</span><textarea name="Комментарий" rows="4" maxlength="800" placeholder="${escapeHtml(t.commentPlaceholder)}"></textarea></label>
+            <button class="button button--catalog-order" type="submit">${icons.mail} ${t.sendOrder}</button>
+            <small>${t.orderNote}</small>
           </form>
         </section>
       </section>
-      <footer class="catalog-footer"><a class="catalog-brand" href="#/catalog"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a><p>Цифровые визитки и объявления с QR-кодом.</p></footer>
+      <footer class="catalog-footer"><a class="catalog-brand" href="#/catalog"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a></footer>
     </main>`;
-  document.title = 'Каталог SCANME — цифровые визитки';
+  document.documentElement.lang = language;
+  document.title = `SCANME — ${t.heroEyebrow}`;
   configureAdminPwa();
   const liveCard = document.querySelector('#catalog-live-card');
   const nameInput = document.querySelector('[name="catalogFullName"]');
@@ -424,24 +506,60 @@ function renderCatalog() {
     body: document.querySelector('[name="catalogBodyFont"]'),
     contact: document.querySelector('[name="catalogContactFont"]'),
   };
+  const cardLanguageField = document.querySelector('[name="catalogCardLanguage"]');
+  const updateCatalogPrices = () => {
+    Object.entries(plans).forEach(([id, plan]) => {
+      document.querySelector(`[data-plan="${id}"][data-price="first"]`).textContent = formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language);
+      document.querySelector(`[data-plan="${id}"][data-price="regular"]`).textContent = formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language);
+    });
+    const status = document.querySelector('#catalog-rate-status');
+    status.textContent = catalogRateState.failed ? t.rateError : catalogRateState.loading ? t.rateLoading : `${t.rateLive}${catalogRateState.updatedAt ? ` · ${new Date(catalogRateState.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}`;
+  };
+  const refreshCatalogRates = async (force = false) => {
+    if (catalogRateState.loading) return;
+    if (!force && catalogRateState.updatedAt && Date.now() - new Date(catalogRateState.updatedAt).getTime() < 60000) return updateCatalogPrices();
+    catalogRateState.loading = true; catalogRateState.failed = false; updateCatalogPrices();
+    try { catalogRateState = { ...await fetchCatalogRates(), loading: false, failed: false }; }
+    catch { catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: true }; catalogDraft.currency = 'DKK'; document.querySelector('#catalog-currency').value = 'DKK'; }
+    updateCatalogPrices();
+  };
   const syncCatalogPreview = () => {
     const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
+    catalogDraft.theme = selectedTheme;
+    catalogDraft.fullName = nameInput.value;
+    catalogDraft.role = roleInput.value;
+    catalogDraft.cardLanguage = cardLanguageField.value;
+    catalogDraft.headingFont = fontFields.heading.value; catalogDraft.secondaryFont = fontFields.secondary.value; catalogDraft.bodyFont = fontFields.body.value; catalogDraft.contactFont = fontFields.contact.value;
     themeOptions.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
     liveCard.classList.add(`theme-${selectedTheme}`);
     liveCard.style.setProperty('--font-heading', fontStacks[fontFields.heading.value]);
     liveCard.style.setProperty('--font-secondary', fontStacks[fontFields.secondary.value]);
     liveCard.style.setProperty('--font-body', fontStacks[fontFields.body.value]);
     liveCard.style.setProperty('--font-contact', fontStacks[fontFields.contact.value]);
-    const fullName = nameInput.value.trim() || 'Ваше имя';
+    const fullName = nameInput.value.trim() || 'Имя Фамилия';
+    const liveCopy = publicTranslations[cardLanguageField.value] || publicTranslations.en;
     document.querySelector('#catalog-preview-name').textContent = fullName;
-    document.querySelector('#catalog-preview-role').textContent = roleInput.value.trim() || 'Должность · Компания';
-    document.querySelector('#catalog-preview-initials').textContent = getInitials(fullName) || 'Я';
+    document.querySelector('#catalog-preview-role').textContent = roleInput.value.trim() || t.demoRole;
+    document.querySelector('#catalog-preview-initials').textContent = getInitials(fullName) || 'ИФ';
+    document.querySelector('#catalog-preview-label').textContent = liveCopy.digitalCard;
+    document.querySelector('#catalog-preview-bio').textContent = catalogText(cardLanguageField.value).demoBio;
+    document.querySelector('#catalog-preview-call').textContent = liveCopy.call;
+    document.querySelector('#catalog-preview-email').textContent = liveCopy.email;
+    document.querySelector('#catalog-preview-website').textContent = liveCopy.website;
+    document.querySelector('#catalog-preview-save').textContent = liveCopy.saveContact;
   };
   document.querySelectorAll('[name="catalogTheme"]').forEach((field) => field.addEventListener('change', syncCatalogPreview));
-  [nameInput, roleInput, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
+  [nameInput, roleInput, cardLanguageField, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
+  document.querySelector('#catalog-language').addEventListener('change', (event) => { catalogDraft.language = event.currentTarget.value; saveCatalogLanguage(catalogDraft.language); renderCatalog(); });
+  document.querySelector('#catalog-currency').addEventListener('change', (event) => { catalogDraft.currency = event.currentTarget.value; updateCatalogPrices(); });
+  document.querySelectorAll('[name="catalogPlan"]').forEach((field) => field.addEventListener('change', (event) => {
+    catalogDraft.plan = event.currentTarget.value;
+    document.querySelectorAll('.catalog-plan').forEach((plan) => { plan.querySelector('i').textContent = plan.querySelector('input').checked ? t.selected : t.choosePlan; });
+  }));
   syncCatalogPreview();
+  refreshCatalogRates();
   document.querySelector('#share-catalog').addEventListener('click', async () => {
-    const data = { title: 'Каталог SCANME', text: 'Цифровые визитки и объявления с QR-кодом', url: window.location.href };
+    const data = { title: 'SCANME', text: t.heroText, url: window.location.href };
     if (navigator.share) await navigator.share(data).catch(() => {});
     else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка на каталог скопирована'); }
   });
@@ -453,12 +571,16 @@ function renderCatalog() {
     const fontName = (field) => fontOptions.find((font) => font.id === field.value)?.name || field.value;
     const button = event.currentTarget.querySelector('[type="submit"]');
     button.disabled = true;
-    button.textContent = 'Создаём карточку…';
+    button.textContent = t.creatingCard;
     try {
-      const fullName = nameInput.value.trim() || 'Ваше имя';
+      await refreshCatalogRates(true);
+      const fullName = nameInput.value.trim() || 'Имя Фамилия';
+      const selectedPlan = plans[catalogDraft.plan];
+      const selectedCardCopy = publicTranslations[cardLanguageField.value] || publicTranslations.en;
       const cardFile = await createOrderCardImage({
-        theme: selectedTheme, fullName, role: roleInput.value.trim() || 'Должность · Компания',
+        theme: selectedTheme, fullName, role: roleInput.value.trim() || t.demoRole,
         fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
+        copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio,
       });
       const transfer = new DataTransfer();
       transfer.items.add(cardFile);
@@ -471,6 +593,13 @@ function renderCatalog() {
         'Шрифт должности': fontName(fontFields.secondary),
         'Шрифт описания': fontName(fontFields.body),
         'Шрифт контактов': fontName(fontFields.contact),
+        'Язык каталога': language,
+        'Язык визитки': cardLanguageField.value,
+        'Тариф': selectedPlan.label,
+        'Первая оплата': formatCatalogPrice(selectedPlan.first, catalogDraft.currency, catalogRateState.rates, language),
+        'Обычная цена после первого периода': formatCatalogPrice(selectedPlan.regular, catalogDraft.currency, catalogRateState.rates, language),
+        'Валюта': catalogDraft.currency,
+        'Курс обновлён': catalogRateState.updatedAt || 'DKK base price',
       };
       event.currentTarget.querySelectorAll('[data-generated-order]').forEach((field) => field.remove());
       Object.entries(orderFields).forEach(([name, value]) => {
@@ -478,14 +607,14 @@ function renderCatalog() {
         hidden.type = 'hidden'; hidden.name = name; hidden.value = value; hidden.dataset.generatedOrder = 'true';
         event.currentTarget.append(hidden);
       });
-      button.textContent = 'Отправляем заказ…';
+      button.textContent = t.sendingOrder;
       event.currentTarget.submit();
-      toast('Заказ и изображение карточки подготовлены к отправке');
-      setTimeout(() => { button.disabled = false; button.innerHTML = `${icons.mail} Отправить заказ`; }, 1800);
+      toast(t.orderReady);
+      setTimeout(() => { button.disabled = false; button.innerHTML = `${icons.mail} ${t.sendOrder}`; }, 1800);
     } catch (error) {
       toast(error.message, 'error');
       button.disabled = false;
-      button.innerHTML = `${icons.mail} Отправить заказ`;
+      button.innerHTML = `${icons.mail} ${t.sendOrder}`;
     }
   });
 }
@@ -494,7 +623,7 @@ const emptyProfile = () => ({
   contentType: 'card',
   language: 'ru',
   fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', photoZoom: '1', photoX: '50', photoY: '50', phone: '',
-  email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
+  email: '', website: '', telegram: '', whatsapp: '', address: '', socialLinks: [], theme: 'lime', published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
   headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
@@ -785,6 +914,42 @@ function renderLogin() {
   });
 }
 
+function showSocialLinkModal(existing, onSave) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <form class="social-modal" id="social-link-form">
+      <button class="modal-close" type="button" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Контакты</p><h2>${existing ? 'Редактировать соцсеть' : 'Добавить соцсеть'}</h2>
+      <label class="field"><span>Социальная сеть</span><select name="network" required><option value="">Выберите из списка</option>${socialNetworkOptions.map((network) => `<option value="${network.id}" ${existing?.network === network.id ? 'selected' : ''}>${network.name}</option>`).join('')}</select></label>
+      <label class="field social-value-field ${existing ? '' : 'is-hidden'}"><span>Ссылка или username</span><input name="value" value="${escapeHtml(existing?.value || '')}" maxlength="300" placeholder="@username или https://…"><small>Можно вставить полную ссылку или только имя пользователя</small></label>
+      <button class="button button--primary button--wide social-submit ${existing ? '' : 'is-hidden'}" type="submit">${existing ? icons.save : icons.plus} ${existing ? 'Сохранить' : 'Добавить'}</button>
+    </form>`;
+  document.body.append(backdrop);
+  const form = backdrop.querySelector('#social-link-form');
+  const networkField = form.elements.network;
+  const valueField = form.elements.value;
+  const syncNetwork = () => {
+    const selected = Boolean(networkField.value);
+    form.querySelector('.social-value-field').classList.toggle('is-hidden', !selected);
+    form.querySelector('.social-submit').classList.toggle('is-hidden', !selected);
+    valueField.required = selected;
+    if (selected) valueField.placeholder = networkField.value === 'website' ? 'https://example.com' : '@username или полная ссылка';
+  };
+  const close = () => backdrop.remove();
+  networkField.addEventListener('change', syncNetwork);
+  backdrop.querySelector('.modal-close').addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = valueField.value.trim();
+    if (!value) return;
+    onSave({ network: networkField.value, value });
+    close();
+  });
+  syncNetwork();
+}
+
 async function renderEditor(slug) {
   if (!currentUser) return renderLogin();
   setLoading('Открываем редактор');
@@ -792,6 +957,7 @@ async function renderEditor(slug) {
   const existing = isNew ? emptyProfile() : await getProfile(slug);
   if (!existing) return renderError('Публикация не найдена', 'Возможно, она была удалена.', '#/admin');
   const profile = { ...emptyProfile(), ...existing };
+  let socialLinks = initialSocialLinks(profile);
   let customThemes = [];
   try {
     customThemes = await listThemes();
@@ -812,6 +978,10 @@ async function renderEditor(slug) {
       <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
       <small>${hint}</small>
     </label>`;
+  const socialRowsHtml = () => socialLinks.length ? socialLinks.map((item, index) => {
+    const network = socialNetwork(item.network);
+    return `<article class="social-link-row"><span class="social-link-icon">${escapeHtml(network.icon)}</span><div><b>${escapeHtml(network.name)}</b><small>${escapeHtml(item.value)}</small></div><button class="icon-button social-edit" type="button" data-index="${index}" aria-label="Редактировать ${escapeHtml(network.name)}">${icons.edit}</button><button class="icon-button social-delete" type="button" data-index="${index}" aria-label="Удалить ${escapeHtml(network.name)}">${icons.trash}</button></article>`;
+  }).join('') : '<p class="social-links-empty">Социальные сети ещё не добавлены.</p>';
 
   app.innerHTML = adminShell(`
     <main class="admin-content editor-page">
@@ -859,10 +1029,11 @@ async function renderEditor(slug) {
           <div class="fields-grid">
             ${input('phone', 'Телефон', { type: 'tel', placeholder: '+45 12 34 56 78' })}
             ${input('email', 'Email', { type: 'email', placeholder: 'hello@example.com' })}
-            ${input('website', 'Сайт', { type: 'url', placeholder: 'https://example.com' })}
-            ${input('telegram', 'Telegram', { placeholder: '@username' })}
-            ${input('whatsapp', 'WhatsApp', { placeholder: '+4512345678' })}
             ${input('address', 'Город / адрес', { placeholder: 'Copenhagen, Denmark' })}
+          </div>
+          <div class="social-links-editor">
+            <div class="social-links-heading"><div><b>Социальные сети</b><small>Instagram, Facebook, TikTok, Telegram, сайт и другие</small></div><button class="button button--social-add" id="add-social-button" type="button">${icons.plus}<span>Добавить</span></button></div>
+            <div class="social-links-list" id="social-links-list">${socialRowsHtml()}</div>
           </div>
         </section>
         <section class="form-card">
@@ -896,6 +1067,22 @@ async function renderEditor(slug) {
       </form>
     </main>`, isNew ? 'new' : 'profiles');
   bindAdminShell();
+
+  const socialList = document.querySelector('#social-links-list');
+  const renderSocialRows = () => { socialList.innerHTML = socialRowsHtml(); };
+  document.querySelector('#add-social-button').addEventListener('click', () => showSocialLinkModal(null, (item) => { socialLinks.push(item); renderSocialRows(); }));
+  socialList.addEventListener('click', (event) => {
+    const editButton = event.target.closest('.social-edit');
+    const deleteButton = event.target.closest('.social-delete');
+    if (editButton) {
+      const index = Number(editButton.dataset.index);
+      showSocialLinkModal(socialLinks[index], (item) => { socialLinks[index] = item; renderSocialRows(); });
+    }
+    if (deleteButton) {
+      socialLinks.splice(Number(deleteButton.dataset.index), 1);
+      renderSocialRows();
+    }
+  });
 
   const form = document.querySelector('#profile-form');
   const nameField = document.querySelector('[name="fullName"]');
@@ -979,6 +1166,7 @@ async function renderEditor(slug) {
     try {
       const formData = new FormData(event.currentTarget);
       const payload = { ...profile, ...Object.fromEntries(formData), slug: slugify(formData.get('slug')), published: formData.has('published') };
+      payload.socialLinks = socialLinks.map((item) => ({ network: item.network, value: item.value }));
       const selectedTheme = form.querySelector('[name="theme"]:checked');
       payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
       if (payload.accessMode === 'timed') {
@@ -1058,17 +1246,19 @@ function contactLink(type, value) {
   return '';
 }
 
+function publicContactItems(profile, copy) {
+  const fixedContacts = [
+    { id: 'phone', value: profile.phone, href: contactLink('phone', profile.phone), icon: icons.phone, label: copy.call },
+    { id: 'email', value: profile.email, href: contactLink('email', profile.email), icon: icons.mail, label: copy.email },
+  ].filter((item) => item.value);
+  return [...fixedContacts, ...socialContactItems(profile)];
+}
+
 function renderAnnouncement(profile) {
   const copy = publicCopy(profile);
-  const contacts = [
-    ['phone', profile.phone, icons.phone, copy.call],
-    ['email', profile.email, icons.mail, copy.email],
-    ['telegram', profile.telegram, '<b>TG</b>', 'Telegram'],
-    ['whatsapp', profile.whatsapp, '<b>WA</b>', 'WhatsApp'],
-    ['website', profile.website, icons.globe, copy.website],
-  ].filter(([, value]) => value);
+  const contacts = publicContactItems(profile, copy);
   const primaryContact = contacts[0];
-  const primaryHref = primaryContact ? contactLink(primaryContact[0], primaryContact[1]) : '';
+  const primaryHref = primaryContact?.href || '';
   const owner = profile.contactName || profile.company || copy.contact;
 
   app.innerHTML = `
@@ -1090,8 +1280,8 @@ function renderAnnouncement(profile) {
       </section>
       <section class="announcement-dock">
         <div class="announcement-owner"><span>${escapeHtml(getInitials(owner))}</span><div><small>${copy.contact}</small><b>${escapeHtml(owner)}</b></div></div>
-        ${primaryHref ? `<a class="announcement-cta" href="${escapeHtml(primaryHref)}" ${primaryContact[0] !== 'phone' && primaryContact[0] !== 'email' ? 'target="_blank" rel="noopener"' : ''}>${escapeHtml(profile.ctaLabel || copy.contactAction)} ${icons.arrow}</a>` : ''}
-        <div class="contact-links announcement-links">${contacts.map(([type, value, icon, label]) => `<a href="${escapeHtml(contactLink(type, value))}" ${type !== 'phone' && type !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${label}</small></a>`).join('')}</div>
+        ${primaryHref ? `<a class="announcement-cta" href="${escapeHtml(primaryHref)}" ${primaryContact.id !== 'phone' && primaryContact.id !== 'email' ? 'target="_blank" rel="noopener"' : ''}>${escapeHtml(profile.ctaLabel || copy.contactAction)} ${icons.arrow}</a>` : ''}
+        <div class="contact-links announcement-links">${contacts.map(({ id, href, icon, label }) => `<a href="${escapeHtml(href)}" ${id !== 'phone' && id !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${escapeHtml(label)}</small></a>`).join('')}</div>
       </section>
     </main>`;
   document.title = `${profile.announcementTitle} — ScanMe`;
@@ -1116,13 +1306,7 @@ async function renderPublic(slug) {
     const photoZoom = clampPhotoValue(profile.photoZoom, 1, 3, 1);
     const photoX = clampPhotoValue(profile.photoX, 0, 100, 50);
     const photoY = clampPhotoValue(profile.photoY, 0, 100, 50);
-    const contacts = [
-      ['phone', profile.phone, icons.phone, copy.call],
-      ['email', profile.email, icons.mail, copy.email],
-      ['website', profile.website, icons.globe, copy.website],
-      ['telegram', profile.telegram, '<b>TG</b>', 'Telegram'],
-      ['whatsapp', profile.whatsapp, '<b>WA</b>', 'WhatsApp'],
-    ].filter(([, value]) => value);
+    const contacts = publicContactItems(profile, copy);
 
     app.innerHTML = `
       <main class="public-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
@@ -1136,7 +1320,7 @@ async function renderPublic(slug) {
           ${profile.address ? `<p class="identity__location">${icons.map}${escapeHtml(profile.address)}</p>` : ''}
         </section>
         <section class="contact-dock">
-          <div class="contact-links">${contacts.map(([type, value, icon, label]) => `<a href="${escapeHtml(contactLink(type, value))}" ${type !== 'phone' && type !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${label}</small></a>`).join('')}</div>
+          <div class="contact-links">${contacts.map(({ id, href, icon, label }) => `<a href="${escapeHtml(href)}" ${id !== 'phone' && id !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${escapeHtml(label)}</small></a>`).join('')}</div>
           <button class="save-contact" id="save-contact">${icons.plus}<span>${copy.saveContact}</span></button><p>${copy.updated} · ScanMe</p>
         </section>
       </main>`;
@@ -1158,11 +1342,12 @@ function downloadVcard(profile) {
   const parts = profile.fullName.trim().split(/\s+/);
   const firstName = parts.shift() || '';
   const lastName = parts.join(' ');
+  const website = initialSocialLinks(profile).find((item) => item.network === 'website')?.value || profile.website;
   const lines = [
     'BEGIN:VCARD', 'VERSION:3.0', `N:${lastName};${firstName};;;`, `FN:${profile.fullName}`,
     profile.company && `ORG:${profile.company}`, profile.title && `TITLE:${profile.title}`,
     profile.phone && `TEL;TYPE=CELL:${profile.phone}`, profile.email && `EMAIL:${profile.email}`,
-    profile.website && `URL:${profile.website}`, profile.address && `ADR;TYPE=WORK:;;${profile.address};;;;`, 'END:VCARD',
+    website && `URL:${safeUrl(website)}`, profile.address && `ADR;TYPE=WORK:;;${profile.address};;;;`, 'END:VCARD',
   ].filter(Boolean).join('\r\n');
   const blob = new Blob([lines], { type: 'text/vcard;charset=utf-8' });
   const link = document.createElement('a');
