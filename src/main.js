@@ -162,6 +162,43 @@ function bindPwaInstall(profile = null) {
   }));
 }
 
+function renderCatalog() {
+  const catalogThemes = themeOptions.map((theme) => `
+    <article class="catalog-theme theme-option theme-option--${theme.id}">
+      <span><i></i><b>${escapeHtml(theme.name)}</b></span>
+    </article>`).join('');
+  app.innerHTML = `
+    <main class="catalog-page">
+      <header class="catalog-header">
+        <a class="catalog-brand" href="#/catalog" aria-label="Каталог SCANME"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a>
+        <a class="catalog-admin-link" href="#/admin">Вход в панель ${icons.arrow}</a>
+      </header>
+      <section class="catalog-hero">
+        <p class="eyebrow">Каталог цифровых визиток</p>
+        <h1>Один QR-код.<br><em>Ваша страница.</em></h1>
+        <p>Персональные визитки и объявления, которые открываются на весь экран, устанавливаются на телефон и всегда остаются актуальными.</p>
+        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-themes">Смотреть оформления ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} Поделиться</button></div>
+      </section>
+      <section class="catalog-benefits" aria-label="Преимущества">
+        <article><span>01</span><b>Один QR навсегда</b><p>Меняйте контакты и оформление, не перепечатывая QR-код.</p></article>
+        <article><span>02</span><b>Как приложение</b><p>Каждую визитку можно добавить на главный экран телефона.</p></article>
+        <article><span>03</span><b>Полный контроль</b><p>Публикация, таймер отключения, языки, шрифты и разные форматы.</p></article>
+      </section>
+      <section class="catalog-gallery" id="catalog-themes">
+        <div class="catalog-section-heading"><div><p class="eyebrow">Оформления</p><h2>Выберите свой характер</h2></div><p>Цвета, автомобили, животные, природа и сезонные стили.</p></div>
+        <div class="catalog-theme-grid">${catalogThemes}</div>
+      </section>
+      <footer class="catalog-footer"><a class="catalog-brand" href="#/catalog"><span>${icons.qr}</span><b>SCAN<em>ME</em></b></a><p>Цифровые визитки и объявления с QR-кодом.</p></footer>
+    </main>`;
+  document.title = 'Каталог SCANME — цифровые визитки';
+  configureAdminPwa();
+  document.querySelector('#share-catalog').addEventListener('click', async () => {
+    const data = { title: 'Каталог SCANME', text: 'Цифровые визитки и объявления с QR-кодом', url: window.location.href };
+    if (navigator.share) await navigator.share(data).catch(() => {});
+    else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка на каталог скопирована'); }
+  });
+}
+
 const emptyProfile = () => ({
   contentType: 'card',
   language: 'ru',
@@ -739,7 +776,7 @@ function renderAnnouncement(profile) {
   app.innerHTML = `
     <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME · ${copy.announcement}</span><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></div></header>
+      <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${icons.qr} SCANME · ${copy.announcement}</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></div></header>
       <section class="announcement-content ${profile.announcementImageUrl ? '' : 'announcement-content--no-image'}">
         ${profile.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(profile.announcementImageUrl)}')"></div>` : ''}
         <div class="announcement-copy">
@@ -792,7 +829,7 @@ async function renderPublic(slug) {
     app.innerHTML = `
       <main class="public-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
         <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-        <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
+        <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${icons.qr} SCANME</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
         <section class="identity">
           <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}">${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.fullName)}" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${photoZoom})">` : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
           <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1>
@@ -853,11 +890,12 @@ function renderError(title, message, backHref) {
 
 async function render() {
   const { page, value } = route();
-  setPublicViewport(page === 'p');
+  setPublicViewport(page === 'p' || page === 'catalog');
   document.documentElement.lang = 'ru';
   if (page !== 'p') configureAdminPwa();
   document.title = 'ScanMe — цифровые визитки';
   if (page === 'p') return renderPublic(value);
+  if (page === 'catalog') return renderCatalog();
   if (page === 'edit') return renderEditor(value || 'new');
   return renderAdmin();
 }
