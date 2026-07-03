@@ -565,13 +565,27 @@ function renderCatalog() {
     if (navigator.share) await navigator.share(data).catch(() => {});
     else { await navigator.clipboard.writeText(window.location.href); toast('Ссылка на каталог скопирована'); }
   });
-  document.querySelector('#catalog-order-form').addEventListener('submit', async (event) => {
+  const orderForm = document.querySelector('#catalog-order-form');
+  if (!orderForm) {
+    toast('Не удалось открыть форму заказа. Обновите страницу и попробуйте снова.', 'error');
+    return;
+  }
+  orderForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const submittedForm = event.currentTarget;
+    if (!(submittedForm instanceof HTMLFormElement)) {
+      toast('Форма заказа недоступна. Обновите страницу и попробуйте снова.', 'error');
+      return;
+    }
     const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
     const themeName = themeOptions.find((theme) => theme.id === selectedTheme)?.name || selectedTheme;
     const fontName = (field) => fontOptions.find((font) => font.id === field.value)?.name || field.value;
-    const button = event.currentTarget.querySelector('[type="submit"]');
+    const button = submittedForm.querySelector('[type="submit"]');
+    const attachmentField = submittedForm.querySelector('#catalog-order-attachment');
+    if (!button || !(attachmentField instanceof HTMLInputElement)) {
+      toast('Не удалось подготовить заказ. Обновите страницу и попробуйте снова.', 'error');
+      return;
+    }
     button.disabled = true;
     button.textContent = t.creatingCard;
     try {
@@ -586,7 +600,7 @@ function renderCatalog() {
       });
       const transfer = new DataTransfer();
       transfer.items.add(cardFile);
-      document.querySelector('#catalog-order-attachment').files = transfer.files;
+      attachmentField.files = transfer.files;
       const orderFields = {
         'Имя на визитке': fullName,
         'Должность / компания': roleInput.value.trim() || 'не указано',
@@ -603,18 +617,19 @@ function renderCatalog() {
         'Валюта': catalogDraft.currency,
         'Курс обновлён': catalogRateState.updatedAt || 'DKK base price',
       };
-      event.currentTarget.querySelectorAll('[data-generated-order]').forEach((field) => field.remove());
+      submittedForm.querySelectorAll('[data-generated-order]').forEach((field) => field.remove());
       Object.entries(orderFields).forEach(([name, value]) => {
         const hidden = document.createElement('input');
         hidden.type = 'hidden'; hidden.name = name; hidden.value = value; hidden.dataset.generatedOrder = 'true';
-        event.currentTarget.append(hidden);
+        submittedForm.append(hidden);
       });
       button.textContent = t.sendingOrder;
-      event.currentTarget.submit();
+      submittedForm.submit();
       toast(t.orderReady);
       setTimeout(() => { button.disabled = false; button.innerHTML = `${icons.mail} ${t.sendOrder}`; }, 1800);
     } catch (error) {
-      toast(error.message, 'error');
+      const message = error instanceof Error && error.message ? error.message : 'Не удалось отправить заказ. Попробуйте ещё раз.';
+      toast(message, 'error');
       button.disabled = false;
       button.innerHTML = `${icons.mail} ${t.sendOrder}`;
     }
