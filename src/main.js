@@ -435,7 +435,7 @@ function renderCatalog() {
         <p class="eyebrow">${t.heroEyebrow}</p>
         <h1>${t.heroTitle}<br><em>${t.heroAccent}</em></h1>
         <p>${t.heroText}</p>
-        <div class="catalog-actions"><a class="button button--catalog" href="#catalog-pricing">${t.start} ${icons.arrow}</a><button class="button button--catalog-ghost" id="share-catalog">${icons.share} ${t.share}</button></div>
+        <div class="catalog-actions"><button class="button button--catalog-ghost" id="share-catalog">${icons.share} ${t.share}</button></div>
       </section>
       <section class="catalog-gallery" id="catalog-themes">
         <section class="catalog-pricing" id="catalog-pricing">
