@@ -155,7 +155,7 @@ const QR_CARD_HEIGHT_MM = 52;
 const QR_CARD_WIDTH_PX = 987;
 const QR_CARD_HEIGHT_PX = 614;
 
-function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
+function wrapQrCardName(context, value, maxWidth) {
   const words = String(value || '').trim().split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
@@ -169,7 +169,7 @@ function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
     }
   });
   if (line) lines.push(line);
-  return lines.slice(0, maxLines);
+  return lines;
 }
 
 function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImage, fonts = {}, sizes = {} }) {
@@ -217,10 +217,11 @@ function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImag
   let lines = [];
   do {
     context.font = `700 ${nameSize}px ${canvasFontFamily(fonts.heading)}`;
-    lines = wrapQrCardName(context, name || 'SCANME', 320, 3);
-    if (lines.length <= 2 && lines.every((line) => context.measureText(line).width <= 320)) break;
+    lines = wrapQrCardName(context, name || 'SCANME', 320);
+    if (lines.length <= 3) break;
     nameSize -= 2;
   } while (nameSize > 30);
+  lines = lines.slice(0, 3);
   const lineHeight = nameSize * 1.12;
   lines.forEach((line, index) => context.fillText(line, 620, 224 + index * lineHeight));
 
@@ -1313,6 +1314,7 @@ async function renderEditor(slug) {
               ${designRange('textPanelOpacity', 'Видимость фона за текстом', { min: 0, max: 90 })}
               ${designRange('textPanelBlur', 'Размытие фона за текстом', { min: 0, max: 30, suffix: ' px' })}
             </div>
+            <div class="design-live-preview"><small>Предпросмотр имени</small><strong id="heading-size-preview">${escapeHtml(profile.fullName || profile.announcementTitle || 'Имя Фамилия')}</strong></div>
           </div>
           <div class="theme-picker">
             ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
@@ -1352,6 +1354,15 @@ async function renderEditor(slug) {
   });
 
   const form = document.querySelector('#profile-form');
+  const headingPreview = form.querySelector('#heading-size-preview');
+  const headingSizeField = form.querySelector('[name="headingSize"]');
+  const headingFontField = form.querySelector('[name="headingFont"]');
+  const syncHeadingPreview = () => {
+    const source = getContentType() === 'announcement' ? announcementTitleField : nameField;
+    headingPreview.textContent = source?.value.trim() || 'Имя Фамилия';
+    headingPreview.style.fontFamily = fontStacks[headingFontField.value] || fontStacks.unbounded;
+    headingPreview.style.fontSize = `${Math.round(clampPhotoValue(headingSizeField.value, 70, 150, 100) * 0.34)}px`;
+  };
   form.querySelectorAll('.design-range input[type="range"]').forEach((range) => {
     const output = form.querySelector(`[data-range-value="${range.name}"]`);
     const sync = () => { if (output) output.textContent = `${range.value}${range.dataset.rangeSuffix || ''}`; };
@@ -1378,6 +1389,7 @@ async function renderEditor(slug) {
     announcementTitleField.required = type === 'announcement';
     announcementDescriptionField.required = type === 'announcement';
     if (!slugTouched) slugField.value = slugify(type === 'announcement' ? announcementTitleField.value : nameField.value);
+    syncHeadingPreview();
   };
   form.querySelectorAll('[name="contentType"]').forEach((radio) => radio.addEventListener('change', syncContentType));
   syncContentType();
@@ -1433,6 +1445,7 @@ async function renderEditor(slug) {
   });
   nameField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'card') slugField.value = slugify(nameField.value); });
   announcementTitleField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'announcement') slugField.value = slugify(announcementTitleField.value); });
+  [nameField, announcementTitleField, headingSizeField, headingFontField].forEach((field) => field.addEventListener('input', syncHeadingPreview));
 
   const updatePhotoPreview = () => {
     const url = photoUrlField.value.trim();
