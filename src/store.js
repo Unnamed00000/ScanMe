@@ -167,7 +167,14 @@ export async function listThemes() {
   if (response.status === 404) return [];
   if (!response.ok) throw new Error('Не удалось загрузить каталог оформлений с GitHub.');
   const themes = await response.json();
-  return Array.isArray(themes) ? themes : [];
+  if (!Array.isArray(themes)) return [];
+  const names = new Set();
+  return themes.filter((theme) => {
+    const key = String(theme?.name || theme?.id || '').trim().toLocaleLowerCase();
+    if (!key || names.has(key)) return false;
+    names.add(key);
+    return true;
+  });
 }
 
 function blobToBase64(blob) {
@@ -241,7 +248,10 @@ export async function uploadTheme({ id, name, blob, token }) {
   const fileName = `${id}.webp`;
   const imageUrl = `https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_BRANCH}/themes/${fileName}`;
   const theme = { id, name, imageUrl, fileName, createdAt: now };
-  const manifest = [theme, ...(Array.isArray(existingThemes) ? existingThemes.filter((item) => item.id !== id) : [])];
+  const normalizedName = name.trim().toLocaleLowerCase();
+  const manifest = [theme, ...(Array.isArray(existingThemes) ? existingThemes.filter((item) => (
+    item.id !== id && String(item.name || '').trim().toLocaleLowerCase() !== normalizedName
+  )) : [])];
 
   const imageBlob = await githubRequest('/git/blobs', githubToken, {
     method: 'POST',
