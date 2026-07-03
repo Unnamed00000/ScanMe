@@ -145,6 +145,18 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .field--wide { grid-column: 1 / -1; }
 .field small { color: #9a9c96; font-size: 9px; font-weight: 500; }
+.photo-crop-editor { display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 24px; margin: 2px 0 20px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: #f2f3ed; }
+.photo-crop-preview { position: relative; display: grid; width: 180px; aspect-ratio: 1; place-items: center; overflow: hidden; border-radius: 37%; color: #888d83; background: #dfe1d9; }
+.photo-crop-preview img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .18s, transform .12s; }
+.photo-crop-preview.has-photo img { opacity: 1; }
+.photo-crop-preview > span { display: grid; justify-items: center; gap: 7px; font-size: 9px; text-align: center; }
+.photo-crop-preview > span svg { width: 28px; height: 28px; }
+.photo-crop-preview.has-photo > span { display: none; }
+.photo-crop-controls { display: grid; gap: 17px; }
+.photo-crop-controls label { display: grid; gap: 8px; color: #555a52; font-size: 10px; font-weight: 700; }
+.photo-crop-controls label > span { display: flex; justify-content: space-between; gap: 12px; }
+.photo-crop-controls input[type="range"] { width: 100%; height: 6px; padding: 0; border: 0; border-radius: 10px; appearance: none; background: #d5d8ce; box-shadow: none; cursor: pointer; accent-color: #8cac22; }
+.photo-crop-controls input[type="range"]::-webkit-slider-thumb { width: 20px; height: 20px; border: 3px solid white; border-radius: 50%; appearance: none; background: #86aa18; box-shadow: 0 2px 8px #0003; }
 .is-hidden { display: none !important; }
 .content-type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .content-type-picker label { cursor: pointer; }
@@ -281,6 +293,7 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .portrait-wrap { position: relative; width: max-content; margin: 0 auto 27px; }
 .portrait { display: grid; width: clamp(118px, 15vw, 170px); aspect-ratio: 1; place-items: center; overflow: hidden; border: 1px solid #ffffff2b; border-radius: 37%; color: #0a0b0d; background: var(--accent); background-position: center; background-size: cover; box-shadow: 0 22px 70px rgba(var(--accent-rgb),.13); font-family: 'Unbounded'; font-size: clamp(32px, 5vw, 52px); }
 .portrait.has-photo { background-color: #202329; }
+.portrait img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
 .portrait-status { position: absolute; width: 18px; height: 18px; right: 4px; bottom: 7px; border: 4px solid #090b10; border-radius: 50%; background: var(--accent); }
 .identity__label { margin: 0 0 12px; color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
 .identity h1 { margin: 0; font-family: 'Unbounded'; font-size: clamp(38px, 7.5vw, 86px); line-height: 1.05; letter-spacing: -.075em; overflow-wrap: anywhere; }
@@ -366,6 +379,8 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
   .form-card { padding: 20px 16px; }
   .fields-grid { grid-template-columns: 1fr; }
   .field--wide { grid-column: auto; }
+  .photo-crop-editor { grid-template-columns: 1fr; justify-items: center; padding: 18px; }
+  .photo-crop-controls { width: 100%; }
   .content-type-picker { grid-template-columns: 1fr; }
   .content-type-picker label > span { min-height: 94px; }
   .theme-picker { grid-template-columns: 1fr 1fr; gap: 9px; }

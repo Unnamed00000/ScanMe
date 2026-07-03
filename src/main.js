@@ -146,7 +146,7 @@ function bindPwaInstall(profile = null) {
 const emptyProfile = () => ({
   contentType: 'card',
   language: 'ru',
-  fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', phone: '',
+  fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', photoZoom: '1', photoX: '50', photoY: '50', phone: '',
   email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
@@ -177,6 +177,11 @@ function themeCard(theme, selectedTheme) {
 
 function publicThemeStyle(profile) {
   return profile.themeImageUrl ? ` style="--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')"` : '';
+}
+
+function clampPhotoValue(value, minimum, maximum, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
 }
 
 function setPublicViewport(enabled) {
@@ -469,6 +474,14 @@ async function renderEditor(slug) {
             ${input('company', 'Компания', { className: 'card-only', placeholder: 'Studio North' })}
             <label class="field field--wide card-only"><span>О себе</span><textarea name="bio" rows="4" placeholder="Коротко расскажите о человеке">${escapeHtml(profile.bio)}</textarea></label>
             ${input('photoUrl', 'Ссылка на фотографию', { className: 'card-only', wide: true, type: 'url', placeholder: 'https://github.com/username.png', hint: 'Можно вставить прямую ссылку на аватар GitHub' })}
+            <div class="photo-crop-editor field--wide card-only">
+              <div class="photo-crop-preview ${profile.photoUrl ? 'has-photo' : ''}" id="photo-crop-preview"><img ${profile.photoUrl ? `src="${escapeHtml(profile.photoUrl)}"` : ''} alt="Предпросмотр"><span>${icons.user}<small>Вставьте ссылку на фото</small></span></div>
+              <div class="photo-crop-controls">
+                <label><span>Приблизить / отдалить <b id="photo-zoom-value">${Number(profile.photoZoom || 1).toFixed(2)}×</b></span><input name="photoZoom" type="range" min="1" max="3" step="0.05" value="${escapeHtml(profile.photoZoom || '1')}"></label>
+                <label><span>Передвинуть влево / вправо</span><input name="photoX" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoX || '50')}"></label>
+                <label><span>Передвинуть вверх / вниз</span><input name="photoY" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoY || '50')}"></label>
+              </div>
+            </div>
 
             ${input('announcementTitle', 'Заголовок объявления', { className: 'announcement-only', wide: true, placeholder: 'Продам автомобиль в отличном состоянии' })}
             ${input('category', 'Категория', { className: 'announcement-only', placeholder: 'Автомобили' })}
@@ -519,6 +532,12 @@ async function renderEditor(slug) {
   const announcementTitleField = document.querySelector('[name="announcementTitle"]');
   const announcementDescriptionField = document.querySelector('[name="announcementDescription"]');
   const slugField = document.querySelector('[name="slug"]');
+  const photoUrlField = document.querySelector('[name="photoUrl"]');
+  const photoPreview = document.querySelector('#photo-crop-preview');
+  const photoPreviewImage = photoPreview.querySelector('img');
+  const photoZoomField = document.querySelector('[name="photoZoom"]');
+  const photoXField = document.querySelector('[name="photoX"]');
+  const photoYField = document.querySelector('[name="photoY"]');
   let slugTouched = !isNew;
   const getContentType = () => form.querySelector('[name="contentType"]:checked')?.value || 'card';
   const syncContentType = () => {
@@ -557,6 +576,22 @@ async function renderEditor(slug) {
   });
   nameField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'card') slugField.value = slugify(nameField.value); });
   announcementTitleField.addEventListener('input', () => { if (!slugTouched && getContentType() === 'announcement') slugField.value = slugify(announcementTitleField.value); });
+
+  const updatePhotoPreview = () => {
+    const url = photoUrlField.value.trim();
+    const zoom = Number(photoZoomField.value || 1);
+    const x = Number(photoXField.value || 50);
+    const y = Number(photoYField.value || 50);
+    photoPreview.classList.toggle('has-photo', Boolean(url));
+    if (url && photoPreviewImage.getAttribute('src') !== url) photoPreviewImage.src = url;
+    photoPreviewImage.style.objectPosition = `${x}% ${y}%`;
+    photoPreviewImage.style.transformOrigin = `${x}% ${y}%`;
+    photoPreviewImage.style.transform = `scale(${zoom})`;
+    document.querySelector('#photo-zoom-value').textContent = `${zoom.toFixed(2)}×`;
+  };
+  [photoUrlField, photoZoomField, photoXField, photoYField].forEach((field) => field.addEventListener('input', updatePhotoPreview));
+  photoPreviewImage.addEventListener('error', () => photoPreview.classList.remove('has-photo'));
+  updatePhotoPreview();
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -693,6 +728,9 @@ async function renderPublic(slug) {
     if (publicationState(profile).id === 'expired') return renderExpired(profile);
     if (profile.contentType === 'announcement') return renderAnnouncement(profile);
     const copy = publicCopy(profile);
+    const photoZoom = clampPhotoValue(profile.photoZoom, 1, 3, 1);
+    const photoX = clampPhotoValue(profile.photoX, 0, 100, 50);
+    const photoY = clampPhotoValue(profile.photoY, 0, 100, 50);
     const contacts = [
       ['phone', profile.phone, icons.phone, copy.call],
       ['email', profile.email, icons.mail, copy.email],
@@ -706,7 +744,7 @@ async function renderPublic(slug) {
         <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
         <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
         <section class="identity">
-          <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}" ${profile.photoUrl ? `style="background-image:url('${escapeHtml(profile.photoUrl)}')"` : ''}>${profile.photoUrl ? '' : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
+          <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}">${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.fullName)}" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${photoZoom})">` : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
           <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1>
           <p class="identity__role">${escapeHtml([profile.title, profile.company].filter(Boolean).join(' · '))}</p>
           ${profile.bio ? `<p class="identity__bio">${escapeHtml(profile.bio)}</p>` : ''}
