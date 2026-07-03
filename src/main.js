@@ -55,6 +55,73 @@ const themeOptions = [
   { id: 'tayotayaris', name: 'Toyota Yaris Aslan' },
 ];
 
+const qrThemePalettes = {
+  lime: { dark: '#0b0d11', light: '#f5ffdc', accent: '#c9ff38' },
+  ocean: { dark: '#052235', light: '#e8faff', accent: '#4ae1ff' },
+  sunset: { dark: '#351018', light: '#fff0e9', accent: '#ff7c59' },
+  violet: { dark: '#23103e', light: '#f5edff', accent: '#b278ff' },
+  emerald: { dark: '#082b20', light: '#e9fff6', accent: '#55efb5' },
+  graphite: { dark: '#111318', light: '#f0f2f5', accent: '#d9dde4' },
+  car: { dark: '#071923', light: '#ebf9ff', accent: '#64d9ff' },
+  landrover: { dark: '#071724', light: '#edf7ff', accent: '#91ccff' },
+  tayotayaris: { dark: '#061722', light: '#ebf8ff', accent: '#7fd7ff' },
+  lion: { dark: '#291708', light: '#fff6e5', accent: '#ffb43c' },
+  wolf: { dark: '#101d29', light: '#eff8ff', accent: '#a9d8ff' },
+  eagle: { dark: '#2a1c0d', light: '#fff7e9', accent: '#ffc66b' },
+  mountains: { dark: '#271a12', light: '#fff5eb', accent: '#ffb875' },
+  forest: { dark: '#102917', light: '#efffea', accent: '#8fe36e' },
+  winter: { dark: '#10243a', light: '#eff9ff', accent: '#b8e3ff' },
+  autumn: { dark: '#32150a', light: '#fff1e9', accent: '#ff8a48' },
+  spring: { dark: '#16301a', light: '#f2ffe9', accent: '#b9f28f' },
+  romantic: { dark: '#35101a', light: '#fff0f3', accent: '#ff728b' },
+};
+
+function qrPalette(theme) {
+  return qrThemePalettes[theme] || qrThemePalettes.lime;
+}
+
+function roundedCanvasRect(context, x, y, width, height, radius) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.arcTo(x + width, y, x + width, y + height, radius);
+  context.arcTo(x + width, y + height, x, y + height, radius);
+  context.arcTo(x, y + height, x, y, radius);
+  context.arcTo(x, y, x + width, y, radius);
+  context.closePath();
+}
+
+function drawQrBrand(canvas, palette) {
+  const context = canvas.getContext('2d');
+  const size = canvas.width;
+  const outerSize = size * 0.19;
+  const outerX = (size - outerSize) / 2;
+  roundedCanvasRect(context, outerX, outerX, outerSize, outerSize, outerSize * 0.22);
+  context.fillStyle = palette.light;
+  context.fill();
+  const markSize = size * 0.145;
+  const markX = (size - markSize) / 2;
+  roundedCanvasRect(context, markX, markX, markSize, markSize, markSize * 0.28);
+  context.fillStyle = palette.accent;
+  context.fill();
+  const scale = markSize * 0.56 / 24;
+  const offset = markX + markSize * 0.22;
+  context.strokeStyle = palette.dark;
+  context.lineWidth = scale * 1.9;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  [[3, 3], [14, 3], [3, 14]].forEach(([x, y]) => context.strokeRect(offset + x * scale, offset + y * scale, 7 * scale, 7 * scale));
+  context.strokeRect(offset + 14 * scale, offset + 14 * scale, 3 * scale, 3 * scale);
+  context.strokeRect(offset + 18 * scale, offset + 18 * scale, 3 * scale, 3 * scale);
+  context.beginPath();
+  context.moveTo(offset + 18 * scale, offset + 14 * scale);
+  context.lineTo(offset + 21 * scale, offset + 14 * scale);
+  context.lineTo(offset + 21 * scale, offset + 16 * scale);
+  context.moveTo(offset + 14 * scale, offset + 19 * scale);
+  context.lineTo(offset + 14 * scale, offset + 21 * scale);
+  context.lineTo(offset + 16 * scale, offset + 21 * scale);
+  context.stroke();
+}
+
 const languageOptions = [
   { id: 'ru', name: 'Русский' },
   { id: 'en', name: 'English' },
@@ -726,18 +793,25 @@ async function renderEditor(slug) {
 async function showQrModal(slug, redirectOnClose = false) {
   document.querySelector('.modal-backdrop')?.remove();
   const url = profileUrl(slug);
+  const profile = await getProfile(slug).catch(() => null);
+  const palette = qrPalette(profile?.theme);
+  const themeName = themeOptions.find((theme) => theme.id === profile?.theme)?.name || 'SCANME';
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
+  backdrop.style.setProperty('--qr-dark', palette.dark);
+  backdrop.style.setProperty('--qr-light', palette.light);
+  backdrop.style.setProperty('--qr-accent', palette.accent);
   backdrop.innerHTML = `
     <section class="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title">
-      <button class="modal-close" aria-label="Закрыть">×</button><p class="eyebrow">Готово к сканированию</p><h2 id="qr-title">QR-код публикации</h2><p>Код всегда ведёт на актуальную версию страницы.</p>
+      <button class="modal-close" aria-label="Закрыть">×</button><p class="eyebrow">${escapeHtml(themeName)}</p><h2 id="qr-title">QR-код в стиле публикации</h2><p>Код всегда ведёт на актуальную версию страницы.</p>
       <div class="qr-canvas-wrap"><canvas id="qr-canvas"></canvas></div>
       <div class="share-url"><span>${escapeHtml(url)}</span><button class="icon-button" id="copy-url" title="Копировать">${icons.copy}</button></div>
       <div class="modal-actions"><a class="button button--ghost" href="#/p/${encodeURIComponent(slug)}" target="_blank">${icons.globe} Открыть</a><button class="button button--primary" id="download-qr">${icons.download} Скачать PNG</button></div>
     </section>`;
   document.body.append(backdrop);
   const canvas = backdrop.querySelector('#qr-canvas');
-  await QRCode.toCanvas(canvas, url, { width: 290, margin: 2, color: { dark: '#090b10', light: '#ffffff' }, errorCorrectionLevel: 'H' });
+  await QRCode.toCanvas(canvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
+  drawQrBrand(canvas, palette);
   const close = () => { backdrop.remove(); if (redirectOnClose) window.location.hash = '#/admin'; };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
