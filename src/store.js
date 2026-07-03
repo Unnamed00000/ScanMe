@@ -28,6 +28,7 @@ const firebaseConfig = {
 };
 
 const forceDemo = import.meta.env.VITE_SCANME_DEMO === 'true';
+export const ADMIN_EMAIL = 'adam.margoev@gmail.com';
 
 export const isFirebaseConfigured = !forceDemo && Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId,
@@ -70,12 +71,32 @@ export function watchAuth(callback) {
     callback({ uid: 'local-demo', email: 'Локальный режим' });
     return () => {};
   }
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user && String(user.email || '').toLowerCase() !== ADMIN_EMAIL) {
+      await firebaseSignOut(auth);
+      callback(null);
+      return;
+    }
+    callback(user);
+  });
 }
 
 export async function login(email, password) {
   if (!isFirebaseConfigured) return { user: { uid: 'local-demo' } };
-  return signInWithEmailAndPassword(auth, email, password);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (normalizedEmail !== ADMIN_EMAIL) {
+    const error = new Error('Неверная почта или пароль.');
+    error.code = 'auth/invalid-credential';
+    throw error;
+  }
+  const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+  if (String(credential.user.email || '').toLowerCase() !== ADMIN_EMAIL) {
+    await firebaseSignOut(auth);
+    const error = new Error('Неверная почта или пароль.');
+    error.code = 'auth/invalid-credential';
+    throw error;
+  }
+  return credential;
 }
 
 export async function logout() {

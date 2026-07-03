@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import './styles.css';
 import {
+  ADMIN_EMAIL,
   getProfile,
   isFirebaseConfigured,
   listProfiles,
@@ -228,7 +229,7 @@ function showThemeUploadModal(onUploaded) {
         <label class="theme-file-field"><input name="themeFile" type="file" accept="image/jpeg,image/png,image/webp"><span>${icons.plus}<b>Выбрать файл</b><small>JPG, PNG или WebP</small></span></label>
         <label class="field"><span>Или прямая ссылка на изображение</span><input name="imageUrl" type="url" placeholder="https://example.com/background.jpg"><small>Ссылка должна открывать сам файл изображения</small></label>
       </div>
-      <label class="field github-token-field"><span>GitHub-токен</span><input name="githubToken" type="password" required autocomplete="off" value="${escapeHtml(sessionStorage.getItem('scanme_github_token') || '')}" placeholder="github_pat_…"><small>Нужен fine-grained token: репозиторий ScanMe → Contents: Read and write. Хранится только до закрытия вкладки. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Создать токен</a></small></label>
+      <label class="field github-token-field"><span>GitHub-токен</span><input name="githubToken" type="password" required autocomplete="off" placeholder="github_pat_…"><small>Нужен fine-grained token: репозиторий ScanMe → Contents: Read and write. Токен не сохраняется в браузере и очищается после загрузки. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Создать токен</a></small></label>
       <p class="theme-upload-hint">Фон автоматически обрежется до 1200 × 1600. Изображение и каталог оформлений сохранятся одним коммитом в папке <b>themes/</b> на GitHub.</p>
       <button class="button button--primary button--wide" type="submit">${icons.plus} Сохранить в GitHub</button>
     </form>`;
@@ -287,7 +288,7 @@ function showThemeUploadModal(onUploaded) {
       const id = `custom-${slugify(name) || 'theme'}-${Date.now().toString(36)}`;
       const blob = await resizeThemeImage(source);
       const theme = await uploadTheme({ id, name, blob, token });
-      sessionStorage.setItem('scanme_github_token', token);
+      event.currentTarget.elements.githubToken.value = '';
       onUploaded(theme);
       close();
       toast('Оформление сохранено в themes/ на GitHub');
@@ -407,7 +408,7 @@ function renderLogin() {
       </section>
       <section class="login-form-wrap"><form class="login-form" id="login-form">
         <p class="eyebrow">Панель управления</p><h2>Вход в ScanMe</h2><p>Введите данные администратора.</p>
-        <label>Электронная почта<input name="email" type="email" autocomplete="email" required placeholder="admin@example.com"></label>
+        <label>Электронная почта<input name="email" type="email" autocomplete="username" required readonly value="${ADMIN_EMAIL}"></label>
         <label>Пароль<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
         <button class="button button--primary button--wide" type="submit">Войти ${icons.arrow}</button><button class="button button--ghost button--wide install-pwa-button" type="button">${icons.download} Установить ScanMe</button><p class="form-error" id="login-error"></p>
       </form></section>
