@@ -63,6 +63,24 @@ const languageOptions = [
   { id: 'ka', name: 'ქართული' },
 ];
 
+const fontOptions = [
+  { id: 'manrope', name: 'Manrope — современный' },
+  { id: 'unbounded', name: 'Unbounded — выразительный' },
+  { id: 'montserrat', name: 'Montserrat — деловой' },
+  { id: 'playfair', name: 'Playfair Display — классический' },
+  { id: 'oswald', name: 'Oswald — строгий' },
+  { id: 'caveat', name: 'Caveat — рукописный' },
+];
+
+const fontStacks = {
+  manrope: "'Manrope', sans-serif",
+  unbounded: "'Unbounded', sans-serif",
+  montserrat: "'Montserrat', sans-serif",
+  playfair: "'Playfair Display', serif",
+  oswald: "'Oswald', sans-serif",
+  caveat: "'Caveat', cursive",
+};
+
 const publicTranslations = {
   ru: { digitalCard: 'Цифровая визитка', announcement: 'ОБЪЯВЛЕНИЕ', call: 'Позвонить', email: 'Email', website: 'Сайт', saveContact: 'Сохранить контакт', updated: 'Обновлено владельцем', contact: 'Контакт', until: 'До', contactAction: 'Связаться', expiredEyebrow: 'Срок публикации завершён', expiredTitle: 'Страница временно отключена', expiredText: 'снова появится после продления владельцем.' },
   en: { digitalCard: 'Digital business card', announcement: 'ADVERTISEMENT', call: 'Call', email: 'Email', website: 'Website', saveContact: 'Save contact', updated: 'Updated by the owner', contact: 'Contact', until: 'Until', contactAction: 'Contact', expiredEyebrow: 'Publication period ended', expiredTitle: 'Page temporarily unavailable', expiredText: 'will return after the owner renews it.' },
@@ -151,6 +169,7 @@ const emptyProfile = () => ({
   email: '', website: '', telegram: '', whatsapp: '', address: '', theme: 'lime', published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
+  headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
 
@@ -177,7 +196,14 @@ function themeCard(theme, selectedTheme) {
 }
 
 function publicThemeStyle(profile) {
-  return profile.themeImageUrl ? ` style="--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')"` : '';
+  const styles = [
+    `--font-heading:${fontStacks[profile.headingFont] || fontStacks.unbounded}`,
+    `--font-secondary:${fontStacks[profile.secondaryFont] || fontStacks.manrope}`,
+    `--font-body:${fontStacks[profile.bodyFont] || fontStacks.manrope}`,
+    `--font-contact:${fontStacks[profile.contactFont] || fontStacks.manrope}`,
+  ];
+  if (profile.themeImageUrl) styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
+  return ` style="${styles.join(';')}"`;
 }
 
 function clampPhotoValue(value, minimum, maximum, fallback) {
@@ -453,6 +479,11 @@ async function renderEditor(slug) {
       <input name="${name}" value="${escapeHtml(options.value ?? profile[name] ?? '')}" ${options.required ? 'required' : ''} type="${options.type || 'text'}" placeholder="${escapeHtml(options.placeholder || '')}">
       ${options.hint ? `<small>${options.hint}</small>` : ''}
     </label>`;
+  const fontSelect = (name, label, hint) => `
+    <label class="field font-field"><span>${label}</span>
+      <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
+      <small>${hint}</small>
+    </label>`;
 
   app.innerHTML = adminShell(`
     <main class="admin-content editor-page">
@@ -479,8 +510,9 @@ async function renderEditor(slug) {
               <div class="photo-crop-preview ${profile.photoUrl ? 'has-photo' : ''}" id="photo-crop-preview"><img ${profile.photoUrl ? `src="${escapeHtml(profile.photoUrl)}"` : ''} alt="Предпросмотр"><span>${icons.user}<small>Вставьте ссылку на фото</small></span></div>
               <div class="photo-crop-controls">
                 <label><span>Приблизить / отдалить <b id="photo-zoom-value">${Number(profile.photoZoom || 1).toFixed(2)}×</b></span><input name="photoZoom" type="range" min="1" max="3" step="0.05" value="${escapeHtml(profile.photoZoom || '1')}"></label>
-                <label><span>Передвинуть влево / вправо</span><input name="photoX" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoX || '50')}"></label>
-                <label><span>Передвинуть вверх / вниз</span><input name="photoY" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoY || '50')}"></label>
+                <label><span>Передвинуть влево / вправо <b id="photo-x-value">${escapeHtml(profile.photoX || '50')}%</b></span><input name="photoX" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoX || '50')}"></label>
+                <label><span>Передвинуть вверх / вниз <b id="photo-y-value">${escapeHtml(profile.photoY || '50')}%</b></span><input name="photoY" type="range" min="0" max="100" step="1" value="${escapeHtml(profile.photoY || '50')}"></label>
+                <button class="photo-reset-button" id="photo-reset-button" type="button">Вернуть фото в центр</button>
               </div>
             </div>
 
@@ -507,6 +539,15 @@ async function renderEditor(slug) {
         </section>
         <section class="form-card">
           <div class="section-heading"><span>03</span><div><h2>Оформление</h2><p>Выберите цвет, настроение, животное, пейзаж или автомобиль.</p></div></div>
+          <div class="font-settings">
+            <div class="font-settings__heading"><b>Шрифты отдельных блоков</b><small>Каждую часть визитки или объявления можно оформить своим стилем.</small></div>
+            <div class="fields-grid">
+              ${fontSelect('headingFont', 'Имя или заголовок', 'Главный крупный текст')}
+              ${fontSelect('secondaryFont', 'Должность, категория или цена', 'Второстепенные акценты')}
+              ${fontSelect('bodyFont', 'О себе или описание', 'Основной длинный текст')}
+              ${fontSelect('contactFont', 'Контакты и кнопки', 'Нижний блок действий')}
+            </div>
+          </div>
           <div class="theme-picker">
             ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
             <button class="theme-add" id="add-theme-button" type="button"><span>${icons.plus}</span><b>Добавить оформление</b><small>Фото обрежется автоматически</small></button>
@@ -589,9 +630,17 @@ async function renderEditor(slug) {
     photoPreviewImage.style.transformOrigin = `${x}% ${y}%`;
     photoPreviewImage.style.transform = `scale(${zoom})`;
     document.querySelector('#photo-zoom-value').textContent = `${zoom.toFixed(2)}×`;
+    document.querySelector('#photo-x-value').textContent = `${Math.round(x)}%`;
+    document.querySelector('#photo-y-value').textContent = `${Math.round(y)}%`;
   };
   [photoUrlField, photoZoomField, photoXField, photoYField].forEach((field) => field.addEventListener('input', updatePhotoPreview));
   photoPreviewImage.addEventListener('error', () => photoPreview.classList.remove('has-photo'));
+  document.querySelector('#photo-reset-button').addEventListener('click', () => {
+    photoZoomField.value = '1';
+    photoXField.value = '50';
+    photoYField.value = '50';
+    updatePhotoPreview();
+  });
   updatePhotoPreview();
 
   form.addEventListener('submit', async (event) => {
