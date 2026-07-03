@@ -172,36 +172,51 @@ function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
   return lines.slice(0, maxLines);
 }
 
-function drawQrBankCard(canvas, qrCanvas, { name, label, palette }) {
+function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImage, fonts = {}, sizes = {} }) {
   canvas.width = QR_CARD_WIDTH_PX;
   canvas.height = QR_CARD_HEIGHT_PX;
   const context = canvas.getContext('2d');
   context.fillStyle = palette.dark;
   context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const glow = context.createRadialGradient(canvas.width, 0, 0, canvas.width, 0, 620);
-  glow.addColorStop(0, palette.accent);
-  glow.addColorStop(1, 'transparent');
-  context.globalAlpha = 0.24;
-  context.fillStyle = glow;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.globalAlpha = 1;
+  if (backgroundImage) {
+    drawCoverImage(context, backgroundImage, canvas.width, canvas.height);
+    const shade = context.createLinearGradient(450, 0, canvas.width, 0);
+    shade.addColorStop(0, 'rgba(3,6,10,.18)');
+    shade.addColorStop(.35, 'rgba(3,6,10,.38)');
+    shade.addColorStop(1, 'rgba(3,6,10,.66)');
+    context.fillStyle = shade;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    const glow = context.createRadialGradient(canvas.width, 0, 0, canvas.width, 0, 620);
+    glow.addColorStop(0, palette.accent);
+    glow.addColorStop(1, 'transparent');
+    context.globalAlpha = 0.24;
+    context.fillStyle = glow;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.globalAlpha = 1;
+  }
 
   roundedCanvasRect(context, 42, 42, 530, 530, 34);
   context.fillStyle = palette.light;
   context.fill();
   context.drawImage(qrCanvas, 66, 66, 482, 482);
 
+  const headingScale = clampPhotoValue(sizes.heading, 70, 150, 100) / 100;
+  const secondaryScale = clampPhotoValue(sizes.secondary, 70, 150, 100) / 100;
+  const contactScale = clampPhotoValue(sizes.contact, 70, 150, 100) / 100;
+
   context.textAlign = 'left';
   context.fillStyle = palette.accent;
-  context.font = "700 22px 'Manrope', sans-serif";
+  context.font = `700 ${Math.round(22 * secondaryScale)}px ${canvasFontFamily(fonts.secondary)}`;
+  context.shadowColor = 'rgba(0,0,0,.75)';
+  context.shadowBlur = 12;
   context.fillText(String(label || 'Digital business card').toUpperCase(), 620, 132);
 
   context.fillStyle = '#fff';
-  let nameSize = 54;
+  let nameSize = Math.round(54 * headingScale);
   let lines = [];
   do {
-    context.font = `700 ${nameSize}px 'Unbounded', 'Manrope', sans-serif`;
+    context.font = `700 ${nameSize}px ${canvasFontFamily(fonts.heading)}`;
     lines = wrapQrCardName(context, name || 'SCANME', 320, 3);
     if (lines.length <= 2 && lines.every((line) => context.measureText(line).width <= 320)) break;
     nameSize -= 2;
@@ -209,15 +224,15 @@ function drawQrBankCard(canvas, qrCanvas, { name, label, palette }) {
   const lineHeight = nameSize * 1.12;
   lines.forEach((line, index) => context.fillText(line, 620, 224 + index * lineHeight));
 
+  const rightCenter = 790;
+  context.textAlign = 'center';
   context.fillStyle = 'rgba(255,255,255,.58)';
-  context.font = "700 18px 'Manrope', sans-serif";
-  context.fillText('QR CODE · SCAN TO OPEN', 620, 470);
+  context.font = `700 ${Math.round(18 * contactScale)}px ${canvasFontFamily(fonts.contact)}`;
+  context.fillText('SCAN TO OPEN', rightCenter, 478);
   context.fillStyle = palette.accent;
-  context.font = "700 27px 'Unbounded', sans-serif";
-  context.fillText('SCANME', 620, 530);
-  context.fillStyle = 'rgba(255,255,255,.42)';
-  context.font = "600 15px 'Manrope', sans-serif";
-  context.fillText(`${QR_CARD_WIDTH_MM} × ${QR_CARD_HEIGHT_MM} mm · 300 DPI`, 620, 565);
+  context.font = `700 ${Math.round(27 * secondaryScale)}px ${canvasFontFamily(fonts.secondary)}`;
+  context.fillText('SCANME', rightCenter, 548);
+  context.shadowBlur = 0;
 }
 
 function printQrBankCard(canvas, title) {
@@ -725,6 +740,8 @@ const emptyProfile = () => ({
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
   headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
+  headingSize: '100', secondarySize: '100', bodySize: '100', contactSize: '100', buttonSize: '100',
+  textPanelOpacity: '32', textPanelBlur: '6',
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
 
@@ -752,11 +769,35 @@ function themeCard(theme, selectedTheme) {
 }
 
 function publicThemeStyle(profile) {
+  const headingScale = clampPhotoValue(profile.headingSize, 70, 150, 100) / 100;
+  const secondaryScale = clampPhotoValue(profile.secondarySize, 70, 150, 100) / 100;
+  const bodyScale = clampPhotoValue(profile.bodySize, 70, 150, 100) / 100;
+  const contactScale = clampPhotoValue(profile.contactSize, 70, 150, 100) / 100;
+  const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
   const styles = [
     `--font-heading:${fontStacks[profile.headingFont] || fontStacks.unbounded}`,
     `--font-secondary:${fontStacks[profile.secondaryFont] || fontStacks.manrope}`,
     `--font-body:${fontStacks[profile.bodyFont] || fontStacks.manrope}`,
     `--font-contact:${fontStacks[profile.contactFont] || fontStacks.manrope}`,
+    `--heading-size:clamp(${38 * headingScale}px,${7.5 * headingScale}vw,${86 * headingScale}px)`,
+    `--heading-size-mobile:clamp(${34 * headingScale}px,${12 * headingScale}vw,${58 * headingScale}px)`,
+    `--announcement-heading-size:clamp(${30 * headingScale}px,${5.6 * headingScale}vw,${66 * headingScale}px)`,
+    `--announcement-heading-size-mobile:clamp(${30 * headingScale}px,${10 * headingScale}vw,${46 * headingScale}px)`,
+    `--secondary-label-size:${10 * secondaryScale}px`,
+    `--secondary-role-size:clamp(${13 * secondaryScale}px,${2 * secondaryScale}vw,${17 * secondaryScale}px)`,
+    `--announcement-price-size:clamp(${22 * secondaryScale}px,${3 * secondaryScale}vw,${36 * secondaryScale}px)`,
+    `--announcement-meta-size:${10 * secondaryScale}px`,
+    `--body-font-size:clamp(${12 * bodyScale}px,${1.7 * bodyScale}vw,${15 * bodyScale}px)`,
+    `--announcement-body-size:${14 * bodyScale}px`,
+    `--contact-font-size:${9 * contactScale}px`,
+    `--contact-icon-size:${48 * contactScale}px`,
+    `--contact-icon-radius:${15 * contactScale}px`,
+    `--button-height:${54 * buttonScale}px`,
+    `--button-width:${370 * buttonScale}px`,
+    `--button-font-size:${14 * buttonScale}px`,
+    `--button-icon-size:${19 * buttonScale}px`,
+    `--text-panel-opacity:${clampPhotoValue(profile.textPanelOpacity, 0, 90, 32) / 100}`,
+    `--text-panel-blur:${clampPhotoValue(profile.textPanelBlur, 0, 30, 6)}px`,
   ];
   if (profile.themeImageUrl) styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
   return ` style="${styles.join(';')}"`;
@@ -1191,6 +1232,10 @@ async function renderEditor(slug) {
       <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
       <small>${hint}</small>
     </label>`;
+  const designRange = (name, label, { min, max, step = 1, suffix = '%' }) => `
+    <label class="design-range"><span>${label}<b data-range-value="${name}">${escapeHtml(profile[name])}${suffix}</b></span>
+      <input name="${name}" type="range" min="${min}" max="${max}" step="${step}" value="${escapeHtml(profile[name])}" data-range-suffix="${suffix}">
+    </label>`;
   const socialRowsHtml = () => socialLinks.length ? socialLinks.map((item, index) => {
     const network = socialNetwork(item.network);
     return `<article class="social-link-row"><span class="social-link-icon">${escapeHtml(network.icon)}</span><div><b>${escapeHtml(network.name)}</b><small>${escapeHtml(item.value)}</small></div><button class="icon-button social-edit" type="button" data-index="${index}" aria-label="Редактировать ${escapeHtml(network.name)}">${icons.edit}</button><button class="icon-button social-delete" type="button" data-index="${index}" aria-label="Удалить ${escapeHtml(network.name)}">${icons.trash}</button></article>`;
@@ -1259,6 +1304,15 @@ async function renderEditor(slug) {
               ${fontSelect('bodyFont', 'О себе или описание', 'Основной длинный текст')}
               ${fontSelect('contactFont', 'Контакты и кнопки', 'Нижний блок действий')}
             </div>
+            <div class="design-controls">
+              ${designRange('headingSize', 'Размер имени или заголовка', { min: 70, max: 150 })}
+              ${designRange('secondarySize', 'Размер должности и подписей', { min: 70, max: 150 })}
+              ${designRange('bodySize', 'Размер описания', { min: 70, max: 150 })}
+              ${designRange('contactSize', 'Размер контактов', { min: 70, max: 150 })}
+              ${designRange('buttonSize', 'Размер кнопок', { min: 70, max: 150 })}
+              ${designRange('textPanelOpacity', 'Видимость фона за текстом', { min: 0, max: 90 })}
+              ${designRange('textPanelBlur', 'Размытие фона за текстом', { min: 0, max: 30, suffix: ' px' })}
+            </div>
           </div>
           <div class="theme-picker">
             ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
@@ -1298,6 +1352,12 @@ async function renderEditor(slug) {
   });
 
   const form = document.querySelector('#profile-form');
+  form.querySelectorAll('.design-range input[type="range"]').forEach((range) => {
+    const output = form.querySelector(`[data-range-value="${range.name}"]`);
+    const sync = () => { if (output) output.textContent = `${range.value}${range.dataset.rangeSuffix || ''}`; };
+    range.addEventListener('input', sync);
+    sync();
+  });
   const nameField = document.querySelector('[name="fullName"]');
   const announcementTitleField = document.querySelector('[name="announcementTitle"]');
   const announcementDescriptionField = document.querySelector('[name="announcementDescription"]');
@@ -1452,6 +1512,17 @@ async function showQrModal(slug, redirectOnClose = false) {
   const displayName = (profile?.contentType === 'announcement'
     ? profile.announcementTitle
     : profile?.fullName) || slug;
+  const backgroundUrl = profile?.themeImageUrl || catalogThemeImages[profile?.theme] || '';
+  const fonts = {
+    heading: profile?.headingFont || 'unbounded',
+    secondary: profile?.secondaryFont || 'manrope',
+    contact: profile?.contactFont || 'manrope',
+  };
+  const sizes = {
+    heading: profile?.headingSize,
+    secondary: profile?.secondarySize,
+    contact: profile?.contactSize,
+  };
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.style.setProperty('--qr-dark', palette.dark);
@@ -1470,7 +1541,8 @@ async function showQrModal(slug, redirectOnClose = false) {
   await QRCode.toCanvas(qrCanvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
   drawQrBrand(qrCanvas, palette);
   await document.fonts?.ready;
-  drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
+  const backgroundImage = backgroundUrl ? await loadCanvasImage(backgroundUrl).catch(() => null) : null;
+  drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
   const close = () => { backdrop.remove(); if (redirectOnClose) window.location.hash = '#/admin'; };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
