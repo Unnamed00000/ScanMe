@@ -488,8 +488,10 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-plan input:checked + span i { background: var(--lime); }
 .catalog-design-heading { padding-top: 85px; border-top: 1px solid #d7d9d1; }
 .catalog-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 34px; }
-.catalog-section-heading h2 { margin: 0; font-family: 'Unbounded'; font-size: clamp(28px, 5vw, 52px); letter-spacing: -.06em; }
-.catalog-section-heading > p { max-width: 360px; margin: 0; color: #777b75; font-size: 11px; line-height: 1.6; }
+.catalog-section-heading h2 { margin: 0; color: #0b0e12; font-family: 'Unbounded'; font-size: clamp(28px, 5vw, 52px); letter-spacing: -.06em; }
+.catalog-section-heading > p { max-width: 360px; margin: 0; color: #555b53; font-size: 12px; font-weight: 600; line-height: 1.65; }
+.catalog-section-heading .eyebrow, .catalog-config-heading .eyebrow, .catalog-order-copy .eyebrow, .catalog-preview-column > .eyebrow { display: inline-flex; width: max-content; align-items: center; margin-bottom: 13px; padding: 8px 12px; border: 1px solid #769d0e; border-radius: 10px; color: #182000; background: #c9ff38; box-shadow: 0 7px 18px #8eb21f2b; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.catalog-preview-column > .eyebrow { color: #062334; border-color: #42bddf; background: #74ddff; box-shadow: 0 7px 18px #42bddf2d; }
 .catalog-theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .catalog-theme { cursor: pointer; }
 .catalog-theme > span { min-height: 170px; padding: 15px; }
@@ -508,8 +510,8 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-live-card .save-contact { width: min(310px, 100%); }
 .catalog-controls { padding: 32px; border: 1px solid #dcddd7; border-radius: 25px; background: #fafaf7; box-shadow: 0 20px 55px #1111; }
 .catalog-config-heading { margin-bottom: 24px; }
-.catalog-config-heading h2, .catalog-order-copy h2 { margin: 0; font-family: 'Unbounded'; font-size: clamp(25px, 3.5vw, 39px); letter-spacing: -.055em; }
-.catalog-config-heading > p:last-child, .catalog-order-copy > p:last-child { margin: 10px 0 0; color: #777b75; font-size: 11px; line-height: 1.6; }
+.catalog-config-heading h2, .catalog-order-copy h2 { margin: 0; color: #0b0e12; font-family: 'Unbounded'; font-size: clamp(25px, 3.5vw, 39px); letter-spacing: -.055em; }
+.catalog-config-heading > p:last-child, .catalog-order-copy > p:last-child { margin: 12px 0 0; color: #555b53; font-size: 12px; font-weight: 600; line-height: 1.65; }
 .catalog-control { display: grid; gap: 7px; margin-top: 15px; color: #5d615b; font-size: 10px; font-weight: 700; }
 .catalog-control input, .catalog-control select, .catalog-control textarea { width: 100%; min-height: 48px; padding: 0 13px; border: 1px solid #d9dbd4; border-radius: 12px; outline: none; color: #17191d; background: white; font: 500 12px 'Manrope'; transition: border-color .18s, box-shadow .18s; }
 .catalog-control textarea { min-height: 105px; padding-top: 12px; resize: vertical; }
