@@ -1126,7 +1126,7 @@ function showThemeManageModal(theme, { onRenamed, onDeleted }) {
 
 function route() {
   const raw = window.location.hash.replace(/^#\/?/, '');
-  const [page = 'admin', value = ''] = raw.split('/');
+  const [page = 'catalog', value = ''] = raw.split('/');
   return { page, value: decodeURIComponent(value) };
 }
 
@@ -1306,15 +1306,19 @@ function renderLogin() {
         <a class="logo logo--light" href="#/admin"><span class="logo__mark">${icons.qr}</span><span>SCAN<span>ME</span></span></a>
         <div class="login-visual__content"><p class="eyebrow">Цифровая визитка</p><h1>Один QR.<br><em>Нужные контакты.</em></h1><p>Создавайте персональные страницы для клиентов и управляйте ими в одном месте.</p></div><div class="scan-lines"></div>
       </section>
-      <section class="login-form-wrap"><form class="login-form" id="login-form">
+      <section class="login-form-wrap"><form class="login-form" id="login-form" autocomplete="off">
         <p class="eyebrow">Панель управления</p><h2>Вход в ScanMe</h2><p>Введите данные администратора.</p>
-        <label>Электронная почта<input name="email" type="email" autocomplete="username" required readonly value="${ADMIN_EMAIL}"></label>
-        <label>Пароль<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
+        <label>Электронная почта<input name="email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore required placeholder="Введите email администратора"></label>
+        <label>Пароль<input name="password" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore required placeholder="Введите пароль"></label>
         <button class="button button--primary button--wide" type="submit">Войти ${icons.arrow}</button><button class="button button--ghost button--wide install-pwa-button" type="button">${icons.download} Установить ScanMe</button><p class="form-error" id="login-error"></p>
       </form></section>
     </main>`;
   bindPwaInstall();
-  document.querySelector('#login-form').addEventListener('submit', async (event) => {
+  const loginForm = document.querySelector('#login-form');
+  loginForm.reset();
+  loginForm.elements.email.value = '';
+  loginForm.elements.password.value = '';
+  loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const submit = event.currentTarget.querySelector('button');
     const errorNode = document.querySelector('#login-error');
