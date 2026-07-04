@@ -6,7 +6,9 @@ export const catalogLanguages = [
   { id: 'de', label: 'Deutsch' },
 ];
 
-export const catalogCurrencies = ['DKK', 'EUR', 'USD', 'BTC', 'TRX'];
+export const catalogFiatCurrencies = ['DKK', 'EUR', 'USD', 'RUB'];
+export const catalogCryptoCurrencies = ['BTC', 'TRX'];
+export const catalogCurrencies = [...catalogFiatCurrencies, ...catalogCryptoCurrencies];
 
 const translations = {
   en: {
@@ -111,17 +113,16 @@ export function saveCatalogLanguage(language) {
 }
 
 export async function fetchCatalogRates() {
-  const [eurResponse, usdResponse, cryptoResponse] = await Promise.all([
-    fetch('https://api.frankfurter.dev/v2/rate/DKK/EUR', { cache: 'no-store' }),
-    fetch('https://api.frankfurter.dev/v2/rate/DKK/USD', { cache: 'no-store' }),
+  const [fiatResponse, cryptoResponse] = await Promise.all([
+    fetch('https://open.er-api.com/v6/latest/DKK', { cache: 'no-store' }),
     fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,tron&vs_currencies=dkk&include_last_updated_at=true', { cache: 'no-store' }),
   ]);
-  if (!eurResponse.ok || !usdResponse.ok || !cryptoResponse.ok) throw new Error('RATE_REQUEST_FAILED');
-  const [eur, usd, crypto] = await Promise.all([eurResponse.json(), usdResponse.json(), cryptoResponse.json()]);
-  if (!eur.rate || !usd.rate || !crypto.bitcoin?.dkk || !crypto.tron?.dkk) throw new Error('RATE_DATA_INVALID');
+  if (!fiatResponse.ok || !cryptoResponse.ok) throw new Error('RATE_REQUEST_FAILED');
+  const [fiat, crypto] = await Promise.all([fiatResponse.json(), cryptoResponse.json()]);
+  if (!fiat.rates?.EUR || !fiat.rates?.USD || !fiat.rates?.RUB || !crypto.bitcoin?.dkk || !crypto.tron?.dkk) throw new Error('RATE_DATA_INVALID');
   return {
-    rates: { DKK: 1, EUR: eur.rate, USD: usd.rate, BTC: 1 / crypto.bitcoin.dkk, TRX: 1 / crypto.tron.dkk },
-    updatedAt: new Date(Math.max((crypto.bitcoin.last_updated_at || 0) * 1000, Date.now() - 60000)).toISOString(),
+    rates: { DKK: 1, EUR: fiat.rates.EUR, USD: fiat.rates.USD, RUB: fiat.rates.RUB, BTC: 1 / crypto.bitcoin.dkk, TRX: 1 / crypto.tron.dkk },
+    updatedAt: new Date(Math.max((crypto.bitcoin.last_updated_at || 0) * 1000, (fiat.time_last_update_unix || 0) * 1000, Date.now() - 60000)).toISOString(),
   };
 }
 

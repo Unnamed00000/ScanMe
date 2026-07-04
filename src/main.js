@@ -1,7 +1,8 @@
 import QRCode from 'qrcode';
 import './styles.css';
 import {
-  catalogCurrencies,
+  catalogCryptoCurrencies,
+  catalogFiatCurrencies,
   catalogLanguages,
   catalogText,
   detectCatalogLanguage,
@@ -608,7 +609,13 @@ async function renderCatalog() {
       <section class="catalog-gallery" id="catalog-themes">
         <section class="catalog-pricing" id="catalog-pricing">
           <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div><p>${t.pricingHelp}</p></div>
-          <div class="catalog-price-toolbar"><label><span>${t.currency}</span><select id="catalog-currency">${catalogCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency === 'TRX' ? 'TRX / TRON' : currency}</option>`).join('')}</select></label><small id="catalog-rate-status">${t.rateLoading}</small></div>
+          <div class="catalog-price-toolbar">
+            <div class="catalog-currency-groups">
+              <label><span>${t.currency} · Fiat</span><select id="catalog-fiat-currency">${catalogFiatCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency}${currency === 'RUB' ? ' · ₽' : ''}</option>`).join('')}</select></label>
+              <label class="catalog-crypto-currency"><span>Crypto</span><select id="catalog-crypto-currency"><option value="">—</option>${catalogCryptoCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency === 'TRX' ? 'TRX / TRON' : currency}</option>`).join('')}</select></label>
+            </div>
+            <small id="catalog-rate-status">${t.rateLoading}</small>
+          </div>
           <div class="catalog-plan-grid">
             ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
           </div>
@@ -691,7 +698,12 @@ async function renderCatalog() {
     if (!force && catalogRateState.updatedAt && Date.now() - new Date(catalogRateState.updatedAt).getTime() < 60000) return updateCatalogPrices();
     catalogRateState.loading = true; catalogRateState.failed = false; updateCatalogPrices();
     try { catalogRateState = { ...await fetchCatalogRates(), loading: false, failed: false }; }
-    catch { catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: true }; catalogDraft.currency = 'DKK'; document.querySelector('#catalog-currency').value = 'DKK'; }
+    catch {
+      catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: true };
+      catalogDraft.currency = 'DKK';
+      document.querySelector('#catalog-fiat-currency').value = 'DKK';
+      document.querySelector('#catalog-crypto-currency').value = '';
+    }
     updateCatalogPrices();
   };
   const syncCatalogPreview = () => {
@@ -727,7 +739,17 @@ async function renderCatalog() {
   document.querySelectorAll('[name="catalogTheme"]').forEach((field) => field.addEventListener('change', syncCatalogPreview));
   [nameInput, roleInput, cardLanguageField, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
   document.querySelector('#catalog-language').addEventListener('change', (event) => { catalogDraft.language = event.currentTarget.value; saveCatalogLanguage(catalogDraft.language); renderCatalog(); });
-  document.querySelector('#catalog-currency').addEventListener('change', (event) => { catalogDraft.currency = event.currentTarget.value; updateCatalogPrices(); });
+  document.querySelector('#catalog-fiat-currency').addEventListener('change', (event) => {
+    catalogDraft.currency = event.currentTarget.value;
+    document.querySelector('#catalog-crypto-currency').value = '';
+    updateCatalogPrices();
+  });
+  document.querySelector('#catalog-crypto-currency').addEventListener('change', (event) => {
+    if (!event.currentTarget.value) return;
+    catalogDraft.currency = event.currentTarget.value;
+    document.querySelector('#catalog-fiat-currency').selectedIndex = -1;
+    updateCatalogPrices();
+  });
   document.querySelectorAll('[name="catalogPlan"]').forEach((field) => field.addEventListener('change', (event) => {
     catalogDraft.plan = event.currentTarget.value;
     document.querySelectorAll('.catalog-plan').forEach((plan) => { plan.querySelector('i').textContent = plan.querySelector('input').checked ? t.selected : t.choosePlan; });
