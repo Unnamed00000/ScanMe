@@ -627,6 +627,31 @@ function showInstallHelp(profile) {
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
 }
 
+function showSeparateProfileInstall(profile) {
+  const language = profile?.language || 'ru';
+  const messages = {
+    ru: { title: 'Установить визитку отдельно', text: 'Скопируйте ссылку, откройте обычный Chrome вручную и вставьте её в адресную строку. Затем нажмите кнопку установки на визитке.', copy: 'Копировать ссылку', copied: 'Ссылка скопирована' },
+    en: { title: 'Install this card separately', text: 'Copy the link, open Chrome manually and paste it into the address bar. Then tap the install button on the card.', copy: 'Copy link', copied: 'Link copied' },
+    da: { title: 'Installer visitkortet separat', text: 'Kopiér linket, åbn Chrome manuelt, og indsæt det i adresselinjen. Tryk derefter på installationsknappen på visitkortet.', copy: 'Kopiér link', copied: 'Link kopieret' },
+    de: { title: 'Visitenkarte separat installieren', text: 'Kopieren Sie den Link, öffnen Sie Chrome manuell und fügen Sie ihn in die Adressleiste ein. Tippen Sie dann auf der Visitenkarte auf Installieren.', copy: 'Link kopieren', copied: 'Link kopiert' },
+    ka: { title: 'ბარათის ცალკე დაყენება', text: 'დააკოპირეთ ბმული, ხელით გახსენით Chrome და ჩასვით მისამართის ველში. შემდეგ ბარათზე კვლავ დააჭირეთ დაყენებას.', copy: 'ბმულის კოპირება', copied: 'ბმული დაკოპირდა' },
+  };
+  const message = messages[language] || messages.ru;
+  const browserUrl = new URL('/ScanMe/', window.location.origin);
+  browserUrl.hash = `#/p/${encodeURIComponent(profile.slug)}`;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `<section class="install-modal"><button class="modal-close" aria-label="Close">×</button><span class="brand-mark">${icons.download}</span><h2>${escapeHtml(message.title)}</h2><p>${escapeHtml(message.text)}</p><button class="button button--primary" id="copy-profile-install-link" type="button">${icons.copy}${escapeHtml(message.copy)}</button></section>`;
+  document.body.append(backdrop);
+  const close = () => backdrop.remove();
+  backdrop.querySelector('.modal-close').addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
+  backdrop.querySelector('#copy-profile-install-link').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(browserUrl.href);
+    toast(message.copied);
+  });
+}
+
 function bindPwaInstall(profile = null) {
   document.querySelectorAll('.install-pwa-button').forEach((button) => button.addEventListener('click', async () => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -636,18 +661,7 @@ function bindPwaInstall(profile = null) {
       return;
     }
     if (standalone && profile) {
-      const browserUrl = new URL('/ScanMe/', window.location.origin);
-      browserUrl.searchParams.set('install-profile', profile.slug);
-      browserUrl.hash = `#/p/${encodeURIComponent(profile.slug)}`;
-      window.open(browserUrl.href, '_blank', 'noopener');
-      const messages = {
-        ru: 'Визитка открыта в браузере. Нажмите кнопку установки ещё раз.',
-        en: 'The card opened in the browser. Tap Install again.',
-        da: 'Visitkortet er åbnet i browseren. Tryk på Installer igen.',
-        de: 'Die Visitenkarte wurde im Browser geöffnet. Tippen Sie erneut auf Installieren.',
-        ka: 'ბარათი ბრაუზერში გაიხსნა. კვლავ დააჭირეთ დაყენებას.',
-      };
-      toast(messages[profile.language] || messages.ru);
+      showSeparateProfileInstall(profile);
       return;
     }
     if (!deferredInstallPrompt) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanme-pwa-v6';
+const CACHE_NAME = 'scanme-pwa-v7';
 const APP_SHELL = [
   '/ScanMe/',
   '/ScanMe/index.html',
