@@ -622,20 +622,16 @@ async function renderCatalog() {
       </section>
       <section class="catalog-gallery" id="catalog-themes">
         <section class="catalog-pricing" id="catalog-pricing">
-          <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div><p>${t.pricingHelp}</p></div>
-          <div class="catalog-payment-layout">
-            <div class="catalog-pricing-main">
-              <div class="catalog-price-toolbar">
-                <div class="catalog-currency-groups">
-                  <label><span>${t.currency} · Fiat</span><select id="catalog-fiat-currency">${catalogFiatCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency}${currency === 'RUB' ? ' · ₽' : ''}</option>`).join('')}</select></label>
-                </div>
-                <small id="catalog-rate-status">${t.rateLoading}</small>
-              </div>
-              <div class="catalog-plan-grid">
-                ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
-              </div>
+          <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div></div>
+          <div class="catalog-offer-toolbar">
+            <div class="catalog-price-toolbar">
+              <small id="catalog-rate-status">${t.rateLoading}</small>
+              <div class="catalog-currency-groups"><label><span>${t.currency} · Fiat</span><select id="catalog-fiat-currency">${catalogFiatCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency}${currency === 'RUB' ? ' · ₽' : ''}</option>`).join('')}</select></label></div>
             </div>
-            <div class="catalog-payment-divider" aria-hidden="true"><span>${escapeHtml(cryptoT.or)}</span></div>
+            <div class="catalog-discount-banner"><strong>−50%</strong><span>${escapeHtml(t.pricingHelp)}</span></div>
+          </div>
+          <div class="catalog-offer-grid">
+            ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
             <aside class="catalog-crypto-panel">
               <p class="eyebrow">${escapeHtml(cryptoT.eyebrow)}</p>
               <h3>${escapeHtml(cryptoT.title)}</h3><p class="catalog-crypto-help">${escapeHtml(cryptoT.help)}</p>
