@@ -1126,8 +1126,8 @@ function showThemeManageModal(theme, { onRenamed, onDeleted }) {
 
 function route() {
   const raw = window.location.hash.replace(/^#\/?/, '');
-  const [page = 'catalog', value = ''] = raw.split('/');
-  return { page, value: decodeURIComponent(value) };
+  const [page = '', value = ''] = raw.split('/');
+  return { page: page || 'catalog', value: decodeURIComponent(value) };
 }
 
 function setLoading(label = 'Загружаем') {
