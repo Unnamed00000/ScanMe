@@ -564,8 +564,19 @@ function manifestLink() {
   return link;
 }
 
+function appleTouchIconLink() {
+  let link = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    document.head.append(link);
+  }
+  return link;
+}
+
 function configureAdminPwa() {
   manifestLink().href = '/ScanMe/manifest.webmanifest';
+  appleTouchIconLink().href = '/ScanMe/icons/icon-192.png';
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'ScanMe');
 }
 
@@ -581,8 +592,13 @@ async function configurePublicPwa(profile) {
   const description = profile.contentType === 'announcement'
     ? profile.announcementDescription
     : [profile.title, profile.company].filter(Boolean).join(' · ');
-  const query = new URLSearchParams({ name: name || 'ScanMe', description, lang: profile.language || 'ru' });
-  manifestLink().href = `/ScanMe/pwa-manifest/${encodeURIComponent(profile.slug)}.webmanifest?${query}`;
+  const icon = /^https?:\/\//i.test(String(profile.photoUrl || '').trim()) ? String(profile.photoUrl).trim() : '';
+  const query = new URLSearchParams({ name: name || 'ScanMe', description, lang: profile.language || 'ru', ...(icon ? { icon } : {}) });
+  const manifest = manifestLink();
+  manifest.href = `/ScanMe/pwa-manifest/${encodeURIComponent(profile.slug)}.webmanifest?${query}`;
+  appleTouchIconLink().href = icon
+    ? `/ScanMe/pwa-icon/${encodeURIComponent(profile.slug)}.png?src=${encodeURIComponent(icon)}`
+    : '/ScanMe/icons/icon-192.png';
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', name || 'ScanMe');
 }
 
@@ -2015,7 +2031,7 @@ function publicContactItems(profile, copy) {
   return [...fixedContacts, ...socialContactItems(profile)];
 }
 
-function renderAnnouncement(profile) {
+async function renderAnnouncement(profile) {
   const copy = publicCopy(profile);
   const contacts = publicContactItems(profile, copy);
   const primaryContact = contacts[0];
@@ -2046,7 +2062,7 @@ function renderAnnouncement(profile) {
       </section>
     </main>`;
   document.title = `${profile.announcementTitle} — ScanMe`;
-  configurePublicPwa(profile);
+  await configurePublicPwa(profile);
   bindPwaInstall(profile);
   document.querySelector('#share-profile').addEventListener('click', async () => {
     const data = { title: profile.announcementTitle, text: profile.price || profile.category || copy.announcement, url: window.location.href };
@@ -2086,7 +2102,7 @@ async function renderPublic(slug) {
         </section>
       </main>`;
     document.title = `${profile.fullName} — ScanMe`;
-    configurePublicPwa(profile);
+    await configurePublicPwa(profile);
     bindPwaInstall(profile);
     document.querySelector('#share-profile').addEventListener('click', async () => {
       const data = { title: profile.fullName, text: [profile.title, profile.company].filter(Boolean).join(' · '), url: window.location.href };

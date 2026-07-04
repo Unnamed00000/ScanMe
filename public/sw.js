@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanme-pwa-v4';
+const CACHE_NAME = 'scanme-pwa-v5';
 const APP_SHELL = [
   '/ScanMe/',
   '/ScanMe/index.html',
@@ -25,6 +25,10 @@ function profileManifest(url) {
   const slug = decodeURIComponent(fileName.replace(/\.webmanifest$/, ''));
   const name = url.searchParams.get('name') || 'ScanMe';
   const shortName = name.length > 24 ? `${name.slice(0, 23)}…` : name;
+  const iconSource = url.searchParams.get('icon') || '';
+  const iconUrl = iconSource
+    ? `/ScanMe/pwa-icon/${encodeURIComponent(slug)}.png?src=${encodeURIComponent(iconSource)}`
+    : '/ScanMe/icons/icon-512.png';
   return {
     name,
     short_name: shortName,
@@ -37,8 +41,8 @@ function profileManifest(url) {
     background_color: '#090b10',
     theme_color: '#090b10',
     icons: [
-      { src: '/ScanMe/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: '/ScanMe/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      { src: iconUrl, sizes: '192x192', purpose: 'any' },
+      { src: iconUrl, sizes: '512x512', purpose: 'any' },
     ],
   };
 }
@@ -51,6 +55,25 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(new Response(JSON.stringify(profileManifest(url)), {
       headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-store' },
     }));
+    return;
+  }
+
+  if (url.pathname.startsWith('/ScanMe/pwa-icon/')) {
+    const source = url.searchParams.get('src') || '';
+    let sourceUrl = null;
+    try {
+      sourceUrl = new URL(source);
+      if (!['http:', 'https:'].includes(sourceUrl.protocol)) sourceUrl = null;
+    } catch {
+      sourceUrl = null;
+    }
+    event.respondWith((sourceUrl
+      ? fetch(sourceUrl.href, { cache: 'no-store' }).then((response) => {
+        if (!response.ok) throw new Error('Profile icon is unavailable');
+        return response;
+      })
+      : Promise.reject(new Error('Profile icon is missing'))
+    ).catch(() => fetch('/ScanMe/icons/icon-512.png')));
     return;
   }
 
