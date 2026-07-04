@@ -595,7 +595,13 @@ async function configurePublicPwa(profile) {
   const icon = /^https?:\/\//i.test(String(profile.photoUrl || '').trim()) ? String(profile.photoUrl).trim() : '';
   const query = new URLSearchParams({ name: name || 'ScanMe', description, lang: profile.language || 'ru', ...(icon ? { icon } : {}) });
   const manifest = manifestLink();
-  manifest.href = `/ScanMe/pwa-manifest/${encodeURIComponent(profile.slug)}.webmanifest?${query}`;
+  const manifestHref = `/ScanMe/pwa-manifest/${encodeURIComponent(profile.slug)}.webmanifest?${query}`;
+  if (manifest.getAttribute('href') !== manifestHref) {
+    const replacement = manifest.cloneNode();
+    replacement.href = manifestHref;
+    manifest.replaceWith(replacement);
+    deferredInstallPrompt = null;
+  }
   appleTouchIconLink().href = icon
     ? `/ScanMe/pwa-icon/${encodeURIComponent(profile.slug)}.png?src=${encodeURIComponent(icon)}`
     : '/ScanMe/icons/icon-192.png';
@@ -623,8 +629,25 @@ function showInstallHelp(profile) {
 
 function bindPwaInstall(profile = null) {
   document.querySelectorAll('.install-pwa-button').forEach((button) => button.addEventListener('click', async () => {
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const installedProfile = new URLSearchParams(window.location.search).get('installed-profile');
+    if (standalone && (!profile || installedProfile === profile.slug)) {
       toast('Приложение уже установлено');
+      return;
+    }
+    if (standalone && profile) {
+      const browserUrl = new URL('/ScanMe/', window.location.origin);
+      browserUrl.searchParams.set('install-profile', profile.slug);
+      browserUrl.hash = `#/p/${encodeURIComponent(profile.slug)}`;
+      window.open(browserUrl.href, '_blank', 'noopener');
+      const messages = {
+        ru: 'Визитка открыта в браузере. Нажмите кнопку установки ещё раз.',
+        en: 'The card opened in the browser. Tap Install again.',
+        da: 'Visitkortet er åbnet i browseren. Tryk på Installer igen.',
+        de: 'Die Visitenkarte wurde im Browser geöffnet. Tippen Sie erneut auf Installieren.',
+        ka: 'ბარათი ბრაუზერში გაიხსნა. კვლავ დააჭირეთ დაყენებას.',
+      };
+      toast(messages[profile.language] || messages.ru);
       return;
     }
     if (!deferredInstallPrompt) {

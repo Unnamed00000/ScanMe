@@ -14,6 +14,7 @@ await copyFile(builtHtml, resolve(root, 'index.html'));
 await copyFile(resolve(dist, 'favicon.svg'), resolve(root, 'favicon.svg'));
 await copyFile(resolve(dist, 'manifest.webmanifest'), resolve(root, 'manifest.webmanifest'));
 await copyFile(resolve(dist, 'sw.js'), resolve(root, 'sw.js'));
+await copyFile(resolve(dist, 'pwa-bootstrap.js'), resolve(root, 'pwa-bootstrap.js'));
 
 await rm(resolve(root, 'icons'), { recursive: true, force: true });
 await cp(resolve(dist, 'icons'), resolve(root, 'icons'), { recursive: true, force: true });

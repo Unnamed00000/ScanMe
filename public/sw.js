@@ -1,8 +1,9 @@
-const CACHE_NAME = 'scanme-pwa-v5';
+const CACHE_NAME = 'scanme-pwa-v6';
 const APP_SHELL = [
   '/ScanMe/',
   '/ScanMe/index.html',
   '/ScanMe/manifest.webmanifest',
+  '/ScanMe/pwa-bootstrap.js',
   '/ScanMe/favicon.svg',
   '/ScanMe/icons/icon-192.png',
   '/ScanMe/icons/icon-512.png',
@@ -35,7 +36,7 @@ function profileManifest(url) {
     description: url.searchParams.get('description') || 'Digital business card',
     lang: url.searchParams.get('lang') || 'ru',
     id: `/ScanMe/pwa/profile/${encodeURIComponent(slug)}`,
-    start_url: `/ScanMe/#/p/${encodeURIComponent(slug)}`,
+    start_url: `/ScanMe/?installed-profile=${encodeURIComponent(slug)}#/p/${encodeURIComponent(slug)}`,
     scope: '/ScanMe/',
     display: 'standalone',
     background_color: '#090b10',
