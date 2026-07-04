@@ -44,6 +44,23 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .not-found h1 { margin: 8px 0; font-family: 'Unbounded'; font-size: clamp(28px, 6vw, 52px); }
 .not-found .brand-mark { margin-bottom: 28px; }
 .not-found .button { margin-top: 20px; }
+.expired-page { display: grid; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 28px; color: white; background: radial-gradient(circle at 15% 0%, #c9ff3817, transparent 34%), radial-gradient(circle at 90% 100%, #59d9ff12, transparent 32%), #080a0f; }
+.expired-card { position: relative; width: min(720px, 100%); overflow: hidden; padding: clamp(30px, 6vw, 64px); border: 1px solid #ffffff16; border-radius: 32px; background: linear-gradient(145deg, #12151bd9, #090b10e8); text-align: center; box-shadow: 0 35px 100px #0008; }
+.expired-card::before { position: absolute; width: 260px; height: 260px; right: -130px; top: -150px; border-radius: 50%; background: #c9ff3818; filter: blur(10px); content: ''; pointer-events: none; }
+.expired-card__brand { display: inline-flex; align-items: center; gap: 10px; color: #d5ff64; font-family: 'Unbounded'; font-size: 12px; letter-spacing: .05em; }
+.expired-card__brand > span { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 12px; color: #090b10; background: var(--lime); }
+.expired-card__brand svg { width: 20px; height: 20px; }
+.expired-card__status { display: flex; width: max-content; max-width: 100%; align-items: center; gap: 8px; margin: 30px auto 0; padding: 8px 12px; border: 1px solid #e9bd5738; border-radius: 20px; color: #eac873; background: #e8ad2410; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.expired-card__status i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #e9bb4d; box-shadow: 0 0 0 4px #e9bb4d1a; }
+.expired-card__name { margin: 30px 0 8px; color: #9ea4ad; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.expired-card h1 { max-width: 620px; margin: 0 auto; font-family: 'Unbounded'; font-size: clamp(30px, 5vw, 54px); line-height: 1.08; letter-spacing: -.065em; }
+.expired-card__text { max-width: 570px; margin: 22px auto 0; color: #a8aeb7; font-size: 14px; line-height: 1.75; }
+.expired-card__saved { display: flex; max-width: 520px; align-items: center; justify-content: center; gap: 10px; margin: 28px auto 0; padding: 14px 16px; border: 1px solid #ffffff12; border-radius: 15px; color: #c1c6ce; background: #ffffff07; font-size: 11px; line-height: 1.5; }
+.expired-card__saved svg { width: 18px; height: 18px; flex: 0 0 auto; color: var(--lime); }
+.expired-card__actions { display: grid; max-width: 520px; grid-template-columns: 1.15fr .85fr; gap: 10px; margin: 28px auto 0; }
+.expired-card__actions .button { min-height: 52px; }
+.button--expired-secondary { border-color: #ffffff20; color: white; background: #ffffff09; }
+.button--expired-secondary:hover { background: #ffffff12; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .admin-layout { display: grid; min-height: 100vh; grid-template-columns: 255px 1fr; background: #f3f3ef; }
@@ -540,6 +557,10 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 }
 
 @media (max-width: 580px) {
+  .expired-page { padding: 14px; }
+  .expired-card { padding: 34px 20px; border-radius: 24px; }
+  .expired-card__actions { grid-template-columns: 1fr; }
+  .expired-card__saved { align-items: flex-start; text-align: left; }
   .admin-content { width: calc(100% - 28px); padding: 30px 0 55px; }
   .page-heading { align-items: flex-start; }
   .page-heading h1 { font-size: 28px; }

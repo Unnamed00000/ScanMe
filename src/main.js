@@ -460,11 +460,11 @@ const fontStacks = {
 };
 
 const publicTranslations = {
-  ru: { digitalCard: 'Цифровая визитка', announcement: 'ОБЪЯВЛЕНИЕ', call: 'Позвонить', email: 'Email', website: 'Сайт', saveContact: 'Сохранить контакт', updated: 'Обновлено владельцем', contact: 'Контакт', until: 'До', contactAction: 'Связаться', expiredEyebrow: 'Срок публикации завершён', expiredTitle: 'Страница временно отключена', expiredText: 'снова появится после продления владельцем.' },
-  en: { digitalCard: 'Digital business card', announcement: 'ADVERTISEMENT', call: 'Call', email: 'Email', website: 'Website', saveContact: 'Save contact', updated: 'Updated by the owner', contact: 'Contact', until: 'Until', contactAction: 'Contact', expiredEyebrow: 'Publication period ended', expiredTitle: 'Page temporarily unavailable', expiredText: 'will return after the owner renews it.' },
-  da: { digitalCard: 'Digitalt visitkort', announcement: 'ANNONCE', call: 'Ring', email: 'E-mail', website: 'Hjemmeside', saveContact: 'Gem kontakt', updated: 'Opdateret af ejeren', contact: 'Kontakt', until: 'Til', contactAction: 'Kontakt', expiredEyebrow: 'Udgivelsesperioden er udløbet', expiredTitle: 'Siden er midlertidigt deaktiveret', expiredText: 'vises igen, når ejeren forlænger perioden.' },
-  de: { digitalCard: 'Digitale Visitenkarte', announcement: 'ANZEIGE', call: 'Anrufen', email: 'E-Mail', website: 'Webseite', saveContact: 'Kontakt speichern', updated: 'Vom Inhaber aktualisiert', contact: 'Kontakt', until: 'Bis', contactAction: 'Kontaktieren', expiredEyebrow: 'Veröffentlichungszeitraum beendet', expiredTitle: 'Seite vorübergehend deaktiviert', expiredText: 'wird nach der Verlängerung durch den Inhaber wieder angezeigt.' },
-  ka: { digitalCard: 'ციფრული სავიზიტო ბარათი', announcement: 'განცხადება', call: 'დარეკვა', email: 'ელფოსტა', website: 'ვებსაიტი', saveContact: 'კონტაქტის შენახვა', updated: 'განახლებულია მფლობელის მიერ', contact: 'კონტაქტი', until: 'მოქმედებს', contactAction: 'დაკავშირება', expiredEyebrow: 'გამოქვეყნების ვადა დასრულდა', expiredTitle: 'გვერდი დროებით გამორთულია', expiredText: 'კვლავ გამოჩნდება მფლობელის მიერ ვადის გაგრძელების შემდეგ.' },
+  ru: { digitalCard: 'Цифровая визитка', announcement: 'ОБЪЯВЛЕНИЕ', call: 'Позвонить', email: 'Email', website: 'Сайт', saveContact: 'Сохранить контакт', updated: 'Обновлено владельцем', contact: 'Контакт', until: 'До', contactAction: 'Связаться', expiredEyebrow: 'Требуется продление', expiredTitle: 'Срок действия визитки истёк', expiredText: 'Оплаченный период публикации завершён. Продлите размещение, чтобы визитка снова открывалась по ссылке и QR-коду.', expiredSaved: 'Все данные сохранены и появятся сразу после продления.', expiredAction: 'Запросить продление', expiredPlans: 'Посмотреть тарифы', expiredSubject: 'Продление визитки' },
+  en: { digitalCard: 'Digital business card', announcement: 'ADVERTISEMENT', call: 'Call', email: 'Email', website: 'Website', saveContact: 'Save contact', updated: 'Updated by the owner', contact: 'Contact', until: 'Until', contactAction: 'Contact', expiredEyebrow: 'Renewal required', expiredTitle: 'This digital card has expired', expiredText: 'The paid publication period has ended. Renew the service to make the card available again through its link and QR code.', expiredSaved: 'All card data is safely stored and will return immediately after renewal.', expiredAction: 'Request renewal', expiredPlans: 'View plans', expiredSubject: 'Digital card renewal' },
+  da: { digitalCard: 'Digitalt visitkort', announcement: 'ANNONCE', call: 'Ring', email: 'E-mail', website: 'Hjemmeside', saveContact: 'Gem kontakt', updated: 'Opdateret af ejeren', contact: 'Kontakt', until: 'Til', contactAction: 'Kontakt', expiredEyebrow: 'Fornyelse påkrævet', expiredTitle: 'Visitkortets periode er udløbet', expiredText: 'Den betalte publiceringsperiode er afsluttet. Forny tjenesten, så visitkortet igen kan åbnes via link og QR-kode.', expiredSaved: 'Alle oplysninger er gemt og vises igen umiddelbart efter fornyelsen.', expiredAction: 'Anmod om fornyelse', expiredPlans: 'Se abonnementer', expiredSubject: 'Fornyelse af digitalt visitkort' },
+  de: { digitalCard: 'Digitale Visitenkarte', announcement: 'ANZEIGE', call: 'Anrufen', email: 'E-Mail', website: 'Webseite', saveContact: 'Kontakt speichern', updated: 'Vom Inhaber aktualisiert', contact: 'Kontakt', until: 'Bis', contactAction: 'Kontaktieren', expiredEyebrow: 'Verlängerung erforderlich', expiredTitle: 'Die Laufzeit der Visitenkarte ist abgelaufen', expiredText: 'Der bezahlte Veröffentlichungszeitraum ist beendet. Verlängern Sie den Dienst, damit die Visitenkarte wieder über Link und QR-Code erreichbar ist.', expiredSaved: 'Alle Daten bleiben gespeichert und werden direkt nach der Verlängerung wieder angezeigt.', expiredAction: 'Verlängerung anfragen', expiredPlans: 'Tarife ansehen', expiredSubject: 'Verlängerung der digitalen Visitenkarte' },
+  ka: { digitalCard: 'ციფრული სავიზიტო ბარათი', announcement: 'განცხადება', call: 'დარეკვა', email: 'ელფოსტა', website: 'ვებსაიტი', saveContact: 'კონტაქტის შენახვა', updated: 'განახლებულია მფლობელის მიერ', contact: 'კონტაქტი', until: 'მოქმედებს', contactAction: 'დაკავშირება', expiredEyebrow: 'საჭიროა განახლება', expiredTitle: 'სავიზიტო ბარათის ვადა ამოიწურა', expiredText: 'ფასიანი გამოქვეყნების პერიოდი დასრულდა. განაახლეთ მომსახურება, რათა ბარათი კვლავ გაიხსნას ბმულითა და QR-კოდით.', expiredSaved: 'ყველა მონაცემი შენახულია და განახლებისთანავე კვლავ გამოჩნდება.', expiredAction: 'განახლების მოთხოვნა', expiredPlans: 'ტარიფების ნახვა', expiredSubject: 'ციფრული სავიზიტო ბარათის განახლება' },
 };
 
 function publicCopy(profile) {
@@ -1806,7 +1806,24 @@ function renderNotFound() {
 function renderExpired(profile) {
   const copy = publicCopy(profile);
   const name = profile.contentType === 'announcement' ? profile.announcementTitle : profile.fullName;
-  app.innerHTML = `<main class="not-found"><span class="brand-mark">${icons.qr}</span><p class="eyebrow">${copy.expiredEyebrow}</p><h1>${copy.expiredTitle}</h1><p>${escapeHtml(name || '')} ${copy.expiredText}</p></main>`;
+  const renewalSubject = encodeURIComponent(`${copy.expiredSubject}: ${name || profile.slug}`);
+  const renewalBody = encodeURIComponent(`${copy.expiredAction}: ${name || profile.slug}\n${profileUrl(profile.slug)}`);
+  app.innerHTML = `
+    <main class="expired-page">
+      <section class="expired-card">
+        <div class="expired-card__brand"><span>${icons.qr}</span><b>SCANME</b></div>
+        <div class="expired-card__status"><i></i>${escapeHtml(copy.expiredEyebrow)}</div>
+        <p class="expired-card__name">${escapeHtml(name || '')}</p>
+        <h1>${escapeHtml(copy.expiredTitle)}</h1>
+        <p class="expired-card__text">${escapeHtml(copy.expiredText)}</p>
+        <div class="expired-card__saved">${icons.save}<span>${escapeHtml(copy.expiredSaved)}</span></div>
+        <div class="expired-card__actions">
+          <a class="button button--primary" href="mailto:${ADMIN_EMAIL}?subject=${renewalSubject}&body=${renewalBody}">${icons.mail}${escapeHtml(copy.expiredAction)}</a>
+          <a class="button button--expired-secondary" href="#/catalog">${icons.globe}${escapeHtml(copy.expiredPlans)}</a>
+        </div>
+      </section>
+    </main>`;
+  document.title = `${copy.expiredTitle} — ScanMe`;
 }
 
 function renderError(title, message, backHref) {
