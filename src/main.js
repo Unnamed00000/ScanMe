@@ -34,7 +34,7 @@ let currentUser = null;
 let deferredInstallPrompt = null;
 let catalogDraft = {
   language: '', cardLanguage: 'en', currency: 'DKK', paymentCrypto: 'BTC', plan: 'monthly', theme: 'lime',
-  fullName: 'Имя Фамилия', role: '', socialLinks: [], headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
+  fullName: 'Имя Фамилия', role: '', phone: '', email: '', socialLinks: [], headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
 };
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
 let catalogSettingsCache = null;
@@ -54,11 +54,11 @@ const cryptoPaymentTranslations = {
 };
 
 const catalogSocialTranslations = {
-  en: { title: 'Social networks', help: 'Instagram, Facebook, TikTok, Telegram, website and more', add: 'Add social network', empty: 'No social networks added yet.', contacts: 'Contacts', addTitle: 'Add social network', editTitle: 'Edit social network', network: 'Social network', choose: 'Choose from the list', value: 'Link or username', valueHelp: 'Enter a full link or username', save: 'Save', remove: 'Remove', edit: 'Edit' },
-  ru: { title: 'Социальные сети', help: 'Instagram, Facebook, TikTok, Telegram, сайт и другие', add: 'Добавить соцсеть', empty: 'Социальные сети ещё не добавлены.', contacts: 'Контакты', addTitle: 'Добавить соцсеть', editTitle: 'Редактировать соцсеть', network: 'Социальная сеть', choose: 'Выберите из списка', value: 'Ссылка или username', valueHelp: 'Можно вставить полную ссылку или имя пользователя', save: 'Сохранить', remove: 'Удалить', edit: 'Редактировать' },
-  da: { title: 'Sociale medier', help: 'Instagram, Facebook, TikTok, Telegram, hjemmeside og flere', add: 'Tilføj socialt medie', empty: 'Ingen sociale medier tilføjet endnu.', contacts: 'Kontakter', addTitle: 'Tilføj socialt medie', editTitle: 'Rediger socialt medie', network: 'Socialt medie', choose: 'Vælg fra listen', value: 'Link eller brugernavn', valueHelp: 'Indtast et komplet link eller brugernavn', save: 'Gem', remove: 'Slet', edit: 'Rediger' },
-  de: { title: 'Soziale Netzwerke', help: 'Instagram, Facebook, TikTok, Telegram, Website und weitere', add: 'Soziales Netzwerk hinzufügen', empty: 'Noch keine sozialen Netzwerke hinzugefügt.', contacts: 'Kontakte', addTitle: 'Soziales Netzwerk hinzufügen', editTitle: 'Soziales Netzwerk bearbeiten', network: 'Soziales Netzwerk', choose: 'Aus Liste wählen', value: 'Link oder Benutzername', valueHelp: 'Vollständigen Link oder Benutzernamen eingeben', save: 'Speichern', remove: 'Löschen', edit: 'Bearbeiten' },
-  ka: { title: 'სოციალური ქსელები', help: 'Instagram, Facebook, TikTok, Telegram, ვებსაიტი და სხვა', add: 'სოციალური ქსელის დამატება', empty: 'სოციალური ქსელები ჯერ არ არის დამატებული.', contacts: 'კონტაქტები', addTitle: 'სოციალური ქსელის დამატება', editTitle: 'სოციალური ქსელის რედაქტირება', network: 'სოციალური ქსელი', choose: 'აირჩიეთ სიიდან', value: 'ბმული ან username', valueHelp: 'შეიყვანეთ სრული ბმული ან მომხმარებლის სახელი', save: 'შენახვა', remove: 'წაშლა', edit: 'რედაქტირება' },
+  en: { title: 'Contacts and social networks', help: 'Add a phone, email, Instagram, Facebook, website and more', phone: 'Phone number', email: 'Email', add: 'Add social network', empty: 'No social networks added yet.', contacts: 'Contacts', addTitle: 'Add social network', editTitle: 'Edit social network', network: 'Social network', choose: 'Choose from the list', value: 'Link or username', valueHelp: 'Enter a full link or username', save: 'Save', remove: 'Remove', edit: 'Edit' },
+  ru: { title: 'Контакты и социальные сети', help: 'Добавьте телефон, email, Instagram, Facebook, сайт и другие', phone: 'Номер телефона', email: 'Email', add: 'Добавить соцсеть', empty: 'Социальные сети ещё не добавлены.', contacts: 'Контакты', addTitle: 'Добавить соцсеть', editTitle: 'Редактировать соцсеть', network: 'Социальная сеть', choose: 'Выберите из списка', value: 'Ссылка или username', valueHelp: 'Можно вставить полную ссылку или имя пользователя', save: 'Сохранить', remove: 'Удалить', edit: 'Редактировать' },
+  da: { title: 'Kontakter og sociale medier', help: 'Tilføj telefon, e-mail, Instagram, Facebook, hjemmeside og flere', phone: 'Telefonnummer', email: 'E-mail', add: 'Tilføj socialt medie', empty: 'Ingen sociale medier tilføjet endnu.', contacts: 'Kontakter', addTitle: 'Tilføj socialt medie', editTitle: 'Rediger socialt medie', network: 'Socialt medie', choose: 'Vælg fra listen', value: 'Link eller brugernavn', valueHelp: 'Indtast et komplet link eller brugernavn', save: 'Gem', remove: 'Slet', edit: 'Rediger' },
+  de: { title: 'Kontakte und soziale Netzwerke', help: 'Telefon, E-Mail, Instagram, Facebook, Website und weitere hinzufügen', phone: 'Telefonnummer', email: 'E-Mail', add: 'Soziales Netzwerk hinzufügen', empty: 'Noch keine sozialen Netzwerke hinzugefügt.', contacts: 'Kontakte', addTitle: 'Soziales Netzwerk hinzufügen', editTitle: 'Soziales Netzwerk bearbeiten', network: 'Soziales Netzwerk', choose: 'Aus Liste wählen', value: 'Link oder Benutzername', valueHelp: 'Vollständigen Link oder Benutzernamen eingeben', save: 'Speichern', remove: 'Löschen', edit: 'Bearbeiten' },
+  ka: { title: 'კონტაქტები და სოციალური ქსელები', help: 'დაამატეთ ტელეფონი, ელფოსტა, Instagram, Facebook, ვებსაიტი და სხვა', phone: 'ტელეფონის ნომერი', email: 'ელფოსტა', add: 'სოციალური ქსელის დამატება', empty: 'სოციალური ქსელები ჯერ არ არის დამატებული.', contacts: 'კონტაქტები', addTitle: 'სოციალური ქსელის დამატება', editTitle: 'სოციალური ქსელის რედაქტირება', network: 'სოციალური ქსელი', choose: 'აირჩიეთ სიიდან', value: 'ბმული ან username', valueHelp: 'შეიყვანეთ სრული ბმული ან მომხმარებლის სახელი', save: 'შენახვა', remove: 'წაშლა', edit: 'რედაქტირება' },
 };
 
 const defaultCatalogSettings = () => ({
@@ -370,7 +370,7 @@ function drawOrderBrand(context, palette) {
   context.fillText('SCANME', 164, 113);
 }
 
-async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description, socialLinks = [] }) {
+async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description, phone = '', email = '', socialLinks = [] }) {
   await document.fonts?.ready;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -418,16 +418,19 @@ async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role,
   context.font = `500 27px ${canvasFontFamily(fonts.body)}`;
   context.fillText(description, 540, 832);
 
-  const contactItems = socialLinks.length
-    ? socialLinks.slice(0, 3).map((item) => ({ label: socialNetwork(item.network).name.toUpperCase(), icon: socialNetwork(item.network).icon }))
-    : [{ label: copy.call, icon: '☎' }, { label: copy.email, icon: '@' }, { label: copy.website, icon: '⌁' }];
+  const customContactItems = [
+    phone ? { label: phone, icon: '☎' } : null,
+    email ? { label: email, icon: '@' } : null,
+    ...socialLinks.map((item) => ({ label: socialNetwork(item.network).name.toUpperCase(), icon: socialNetwork(item.network).icon })),
+  ].filter(Boolean).slice(0, 3);
+  const contactItems = customContactItems.length ? customContactItems : [{ label: copy.call, icon: '☎' }, { label: copy.email, icon: '@' }, { label: copy.website, icon: '⌁' }];
   contactItems.forEach((item, index) => {
     const x = 540 - ((contactItems.length - 1) * 302) / 2 + index * 302;
     roundedCanvasRect(context, x - 68, 902, 136, 136, 36);
     context.fillStyle = 'rgba(255,255,255,.08)'; context.fill();
     context.strokeStyle = 'rgba(255,255,255,.18)'; context.lineWidth = 2; context.stroke();
     context.fillStyle = palette.accent; context.font = `700 34px ${canvasFontFamily(fonts.contact)}`; context.fillText(item.icon, x, 982);
-    context.fillStyle = 'rgba(255,255,255,.68)'; context.font = `700 17px ${canvasFontFamily(fonts.contact)}`; context.fillText(String(item.label).toUpperCase(), x, 1068);
+    context.fillStyle = 'rgba(255,255,255,.68)'; fitCanvasText(context, String(item.label).toUpperCase(), 250, 17, 10, 700, canvasFontFamily(fonts.contact)); context.fillText(String(item.label).toUpperCase(), x, 1068);
   });
   roundedCanvasRect(context, 250, 1132, 580, 82, 25);
   context.fillStyle = palette.accent; context.fill();
@@ -685,6 +688,10 @@ async function renderCatalog() {
             ${catalogFontSelect('catalogContactFont', t.contactFont, catalogDraft.contactFont)}
             <div class="catalog-social-builder">
               <div class="social-links-heading"><div><b>${escapeHtml(socialT.title)}</b><small>${escapeHtml(socialT.help)}</small></div><button class="button button--social-add" id="catalog-add-social" type="button">${icons.plus}<span>${escapeHtml(socialT.add)}</span></button></div>
+              <div class="catalog-direct-contacts">
+                <label class="catalog-control"><span>${escapeHtml(socialT.phone)}</span><input name="catalogPhone" type="tel" value="${escapeHtml(catalogDraft.phone)}" maxlength="40" placeholder="+45 12 34 56 78"></label>
+                <label class="catalog-control"><span>${escapeHtml(socialT.email)}</span><input name="catalogEmail" type="email" value="${escapeHtml(catalogDraft.email)}" maxlength="120" placeholder="name@example.com"></label>
+              </div>
               <div class="social-links-list" id="catalog-social-list"></div>
             </div>
           </div>
@@ -716,6 +723,8 @@ async function renderCatalog() {
   const liveCard = document.querySelector('#catalog-live-card');
   const nameInput = document.querySelector('[name="catalogFullName"]');
   const roleInput = document.querySelector('[name="catalogRole"]');
+  const phoneInput = document.querySelector('[name="catalogPhone"]');
+  const emailInput = document.querySelector('[name="catalogEmail"]');
   const fontFields = {
     heading: document.querySelector('[name="catalogHeadingFont"]'),
     secondary: document.querySelector('[name="catalogSecondaryFont"]'),
@@ -796,6 +805,8 @@ async function renderCatalog() {
     catalogDraft.theme = selectedTheme;
     catalogDraft.fullName = nameInput.value;
     catalogDraft.role = roleInput.value;
+    catalogDraft.phone = phoneInput.value.trim();
+    catalogDraft.email = emailInput.value.trim();
     catalogDraft.cardLanguage = cardLanguageField.value;
     catalogDraft.headingFont = fontFields.heading.value; catalogDraft.secondaryFont = fontFields.secondary.value; catalogDraft.bodyFont = fontFields.body.value; catalogDraft.contactFont = fontFields.contact.value;
     allCatalogThemes.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
@@ -814,14 +825,19 @@ async function renderCatalog() {
     document.querySelector('#catalog-preview-initials').textContent = getInitials(fullName) || 'ИФ';
     document.querySelector('#catalog-preview-label').textContent = liveCopy.digitalCard;
     document.querySelector('#catalog-preview-bio').textContent = catalogText(cardLanguageField.value).demoBio;
+    const directItems = [
+      catalogDraft.phone ? { icon: icons.phone, label: catalogDraft.phone } : null,
+      catalogDraft.email ? { icon: icons.mail, label: catalogDraft.email } : null,
+    ].filter(Boolean);
     const socialItems = socialContactItems({ socialLinks: catalogDraft.socialLinks });
-    document.querySelector('#catalog-preview-contacts').innerHTML = socialItems.length
-      ? socialItems.map((item) => `<span><i>${item.icon}</i><small>${escapeHtml(item.label)}</small></span>`).join('')
+    const contactItems = [...directItems, ...socialItems];
+    document.querySelector('#catalog-preview-contacts').innerHTML = contactItems.length
+      ? contactItems.map((item) => `<span><i>${item.icon}</i><small>${escapeHtml(item.label)}</small></span>`).join('')
       : `<span><i>${icons.phone}</i><small>${liveCopy.call}</small></span><span><i>${icons.mail}</i><small>${liveCopy.email}</small></span><span><i>${icons.globe}</i><small>${liveCopy.website}</small></span>`;
     document.querySelector('#catalog-preview-save').textContent = liveCopy.saveContact;
   };
   document.querySelectorAll('[name="catalogTheme"]').forEach((field) => field.addEventListener('change', syncCatalogPreview));
-  [nameInput, roleInput, cardLanguageField, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
+  [nameInput, roleInput, phoneInput, emailInput, cardLanguageField, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
   document.querySelector('#catalog-add-social').addEventListener('click', () => showSocialLinkModal(null, (item) => { catalogDraft.socialLinks.push(item); renderCatalogSocialRows(); syncCatalogPreview(); }, socialT));
   document.querySelector('#catalog-language').addEventListener('change', (event) => { catalogDraft.language = event.currentTarget.value; saveCatalogLanguage(catalogDraft.language); renderCatalog(); });
   document.querySelector('#catalog-fiat-currency').addEventListener('change', (event) => {
@@ -898,7 +914,7 @@ async function renderCatalog() {
       const cardFile = await createOrderCardImage({
         theme: selectedTheme, themeImageUrl: selectedThemeUrl, fullName, role: roleInput.value.trim() || t.demoRole,
         fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
-        copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio, socialLinks: catalogDraft.socialLinks,
+        copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio, phone: catalogDraft.phone, email: catalogDraft.email, socialLinks: catalogDraft.socialLinks,
       });
       const transfer = new DataTransfer();
       transfer.items.add(cardFile);
@@ -911,6 +927,8 @@ async function renderCatalog() {
         'Шрифт должности': fontName(fontFields.secondary),
         'Шрифт описания': fontName(fontFields.body),
         'Шрифт контактов': fontName(fontFields.contact),
+        'Номер телефона визитки': catalogDraft.phone || 'не указан',
+        'Email визитки': catalogDraft.email || 'не указан',
         'Социальные сети': catalogDraft.socialLinks.length ? catalogDraft.socialLinks.map((item) => `${socialNetwork(item.network).name}: ${item.value}`).join(' | ') : 'не добавлены',
         'Язык каталога': language,
         'Язык визитки': cardLanguageField.value,
