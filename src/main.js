@@ -33,12 +33,25 @@ const app = document.querySelector('#app');
 let currentUser = null;
 let deferredInstallPrompt = null;
 let catalogDraft = {
-  language: '', cardLanguage: 'en', currency: 'DKK', plan: 'monthly', theme: 'lime',
+  language: '', cardLanguage: 'en', currency: 'DKK', paymentCrypto: 'BTC', plan: 'monthly', theme: 'lime',
   fullName: 'Имя Фамилия', role: '', headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
 };
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
 let catalogSettingsCache = null;
 let catalogCustomThemesCache = null;
+
+const cryptoWallets = {
+  BTC: { address: 'bc1qg8mgdzuznmy63u72wntwt8vl2fmeee7zh6r7x4', network: 'Bitcoin' },
+  TRX: { address: 'TLbMWMu88nJyp9bqBwuWtMWvzUQLMe57f8', network: 'TRON · TRC20' },
+};
+
+const cryptoPaymentTranslations = {
+  en: { eyebrow: 'Crypto payment', title: 'Pay with cryptocurrency', help: 'Choose a network, copy the payment details or scan the QR code in your wallet.', first: 'First payment', network: 'Network', address: 'Receiving address', copy: 'Copy address', open: 'Open wallet', copied: 'Address copied', warning: 'Send only the selected asset through the specified network. Payments are confirmed manually.' },
+  ru: { eyebrow: 'Оплата криптовалютой', title: 'Оплатить криптовалютой', help: 'Выберите сеть, скопируйте данные для оплаты или отсканируйте QR-код в кошельке.', first: 'Первая оплата', network: 'Сеть', address: 'Адрес получения', copy: 'Копировать адрес', open: 'Открыть кошелёк', copied: 'Адрес скопирован', warning: 'Отправляйте только выбранную монету через указанную сеть. Платёж подтверждается вручную.' },
+  da: { eyebrow: 'Kryptobetaling', title: 'Betal med kryptovaluta', help: 'Vælg netværk, kopiér betalingsoplysningerne eller scan QR-koden i din wallet.', first: 'Første betaling', network: 'Netværk', address: 'Modtageradresse', copy: 'Kopiér adresse', open: 'Åbn wallet', copied: 'Adressen er kopieret', warning: 'Send kun det valgte aktiv via det angivne netværk. Betalingen bekræftes manuelt.' },
+  de: { eyebrow: 'Krypto-Zahlung', title: 'Mit Kryptowährung bezahlen', help: 'Netzwerk wählen, Zahlungsdaten kopieren oder den QR-Code mit der Wallet scannen.', first: 'Erste Zahlung', network: 'Netzwerk', address: 'Empfangsadresse', copy: 'Adresse kopieren', open: 'Wallet öffnen', copied: 'Adresse kopiert', warning: 'Senden Sie nur den gewählten Vermögenswert über das angegebene Netzwerk. Zahlungen werden manuell bestätigt.' },
+  ka: { eyebrow: 'კრიპტო გადახდა', title: 'გადახდა კრიპტოვალუტით', help: 'აირჩიეთ ქსელი, დააკოპირეთ მონაცემები ან დაასკანირეთ QR კოდი საფულით.', first: 'პირველი გადახდა', network: 'ქსელი', address: 'მიმღების მისამართი', copy: 'მისამართის კოპირება', open: 'საფულის გახსნა', copied: 'მისამართი დაკოპირდა', warning: 'გაგზავნეთ მხოლოდ არჩეული აქტივი მითითებული ქსელით. გადახდა დასტურდება ხელით.' },
+};
 
 const defaultCatalogSettings = () => ({
   hiddenThemeIds: [],
@@ -579,6 +592,7 @@ async function renderCatalog() {
   if (!catalogDraft.language) catalogDraft.language = detectCatalogLanguage();
   const language = catalogDraft.language;
   const t = catalogText(language);
+  const cryptoT = cryptoPaymentTranslations[language] || cryptoPaymentTranslations.en;
   const cardCopy = publicTranslations[catalogDraft.cardLanguage] || publicTranslations.en;
   const settings = normalizeCatalogSettings(catalogSettingsCache);
   const plans = Object.fromEntries(settings.plans.filter((plan) => plan.enabled).map((plan) => {
@@ -609,15 +623,28 @@ async function renderCatalog() {
       <section class="catalog-gallery" id="catalog-themes">
         <section class="catalog-pricing" id="catalog-pricing">
           <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div><p>${t.pricingHelp}</p></div>
-          <div class="catalog-price-toolbar">
-            <div class="catalog-currency-groups">
-              <label><span>${t.currency} · Fiat</span><select id="catalog-fiat-currency">${catalogFiatCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency}${currency === 'RUB' ? ' · ₽' : ''}</option>`).join('')}</select></label>
-              <label class="catalog-crypto-currency"><span>Crypto</span><select id="catalog-crypto-currency"><option value="">—</option>${catalogCryptoCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency === 'TRX' ? 'TRX / TRON' : currency}</option>`).join('')}</select></label>
+          <div class="catalog-payment-layout">
+            <div class="catalog-pricing-main">
+              <div class="catalog-price-toolbar">
+                <div class="catalog-currency-groups">
+                  <label><span>${t.currency} · Fiat</span><select id="catalog-fiat-currency">${catalogFiatCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency}${currency === 'RUB' ? ' · ₽' : ''}</option>`).join('')}</select></label>
+                </div>
+                <small id="catalog-rate-status">${t.rateLoading}</small>
+              </div>
+              <div class="catalog-plan-grid">
+                ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
+              </div>
             </div>
-            <small id="catalog-rate-status">${t.rateLoading}</small>
-          </div>
-          <div class="catalog-plan-grid">
-            ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
+            <aside class="catalog-crypto-panel">
+              <p class="eyebrow">${escapeHtml(cryptoT.eyebrow)}</p>
+              <h3>${escapeHtml(cryptoT.title)}</h3><p class="catalog-crypto-help">${escapeHtml(cryptoT.help)}</p>
+              <div class="catalog-crypto-tabs">${catalogCryptoCurrencies.map((coin) => `<button type="button" data-crypto-coin="${coin}" class="${catalogDraft.paymentCrypto === coin ? 'is-active' : ''}"><span class="crypto-symbol crypto-symbol--${coin.toLowerCase()}">${coin === 'BTC' ? '₿' : 'T'}</span><b>${coin === 'BTC' ? 'Bitcoin' : 'TRON'}</b><small>${coin === 'BTC' ? 'BTC' : 'TRC20'}</small></button>`).join('')}</div>
+              <div class="catalog-crypto-amount"><span>${escapeHtml(cryptoT.first)}</span><strong id="catalog-crypto-amount">…</strong><small id="catalog-crypto-network"></small></div>
+              <div class="catalog-crypto-qr"><img id="catalog-crypto-qr" alt="Crypto payment QR code"><span>SCAN TO PAY</span></div>
+              <div class="catalog-crypto-address"><span>${escapeHtml(cryptoT.address)}</span><code id="catalog-crypto-address"></code></div>
+              <div class="catalog-crypto-actions"><button class="button button--ghost" id="catalog-copy-crypto" type="button">${icons.copy} ${escapeHtml(cryptoT.copy)}</button><a class="button button--primary" id="catalog-open-wallet" href="#">${icons.arrow} ${escapeHtml(cryptoT.open)}</a></div>
+              <p class="catalog-crypto-warning">${escapeHtml(cryptoT.warning)}</p>
+            </aside>
           </div>
         </section>
         <div class="catalog-section-heading catalog-design-heading"><div><p class="eyebrow">${t.designStep}</p><h2>${t.designTitle}</h2></div><p>${t.designHelp}</p></div>
@@ -683,6 +710,25 @@ async function renderCatalog() {
     contact: document.querySelector('[name="catalogContactFont"]'),
   };
   const cardLanguageField = document.querySelector('[name="catalogCardLanguage"]');
+  const syncCryptoPayment = async () => {
+    const coin = catalogDraft.paymentCrypto in cryptoWallets ? catalogDraft.paymentCrypto : 'BTC';
+    const wallet = cryptoWallets[coin];
+    const plan = plans[catalogDraft.plan];
+    const amount = plan && catalogRateState.rates[coin] ? plan.first * catalogRateState.rates[coin] : null;
+    const formattedAmount = amount == null ? '…' : `${amount.toFixed(coin === 'BTC' ? 8 : 4)} ${coin}`;
+    const paymentUri = coin === 'BTC'
+      ? `bitcoin:${wallet.address}${amount ? `?amount=${amount.toFixed(8)}` : ''}`
+      : `tron:${wallet.address}${amount ? `?amount=${amount.toFixed(4)}` : ''}`;
+    document.querySelector('#catalog-crypto-amount').textContent = formattedAmount;
+    document.querySelector('#catalog-crypto-network').textContent = `${cryptoT.network}: ${wallet.network}`;
+    document.querySelector('#catalog-crypto-address').textContent = wallet.address;
+    document.querySelector('#catalog-open-wallet').href = paymentUri;
+    document.querySelectorAll('[data-crypto-coin]').forEach((button) => button.classList.toggle('is-active', button.dataset.cryptoCoin === coin));
+    try {
+      const qrData = await QRCode.toDataURL(wallet.address, { width: 520, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#0a0d12', light: '#ffffff' } });
+      if (catalogDraft.paymentCrypto === coin) document.querySelector('#catalog-crypto-qr').src = qrData;
+    } catch { document.querySelector('#catalog-crypto-qr').removeAttribute('src'); }
+  };
   const updateCatalogPrices = () => {
     Object.entries(plans).forEach(([id, plan]) => {
       const first = document.querySelector(`[data-plan="${CSS.escape(id)}"][data-price="first"]`);
@@ -692,6 +738,7 @@ async function renderCatalog() {
     });
     const status = document.querySelector('#catalog-rate-status');
     status.textContent = catalogRateState.failed ? t.rateError : catalogRateState.loading ? t.rateLoading : `${t.rateLive}${catalogRateState.updatedAt ? ` · ${new Date(catalogRateState.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}`;
+    syncCryptoPayment();
   };
   const refreshCatalogRates = async (force = false) => {
     if (catalogRateState.loading) return;
@@ -702,7 +749,6 @@ async function renderCatalog() {
       catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: true };
       catalogDraft.currency = 'DKK';
       document.querySelector('#catalog-fiat-currency').value = 'DKK';
-      document.querySelector('#catalog-crypto-currency').value = '';
     }
     updateCatalogPrices();
   };
@@ -741,18 +787,19 @@ async function renderCatalog() {
   document.querySelector('#catalog-language').addEventListener('change', (event) => { catalogDraft.language = event.currentTarget.value; saveCatalogLanguage(catalogDraft.language); renderCatalog(); });
   document.querySelector('#catalog-fiat-currency').addEventListener('change', (event) => {
     catalogDraft.currency = event.currentTarget.value;
-    document.querySelector('#catalog-crypto-currency').value = '';
     updateCatalogPrices();
   });
-  document.querySelector('#catalog-crypto-currency').addEventListener('change', (event) => {
-    if (!event.currentTarget.value) return;
-    catalogDraft.currency = event.currentTarget.value;
-    document.querySelector('#catalog-fiat-currency').selectedIndex = -1;
-    updateCatalogPrices();
+  document.querySelectorAll('[data-crypto-coin]').forEach((button) => button.addEventListener('click', () => { catalogDraft.paymentCrypto = button.dataset.cryptoCoin; syncCryptoPayment(); }));
+  document.querySelector('#catalog-copy-crypto').addEventListener('click', async () => {
+    const address = cryptoWallets[catalogDraft.paymentCrypto]?.address;
+    if (!address) return;
+    try { await navigator.clipboard.writeText(address); toast(cryptoT.copied); }
+    catch { toast(address); }
   });
   document.querySelectorAll('[name="catalogPlan"]').forEach((field) => field.addEventListener('change', (event) => {
     catalogDraft.plan = event.currentTarget.value;
     document.querySelectorAll('.catalog-plan').forEach((plan) => { plan.querySelector('i').textContent = plan.querySelector('input').checked ? t.selected : t.choosePlan; });
+    syncCryptoPayment();
   }));
   const previewColumn = document.querySelector('.catalog-preview-column');
   document.querySelector('#catalog-mobile-preview')?.addEventListener('click', () => previewColumn.classList.add('is-mobile-open'));
@@ -816,6 +863,8 @@ async function renderCatalog() {
         'Первая оплата': formatCatalogPrice(selectedPlan.first, catalogDraft.currency, catalogRateState.rates, language),
         'Обычная цена после первого периода': formatCatalogPrice(selectedPlan.regular, catalogDraft.currency, catalogRateState.rates, language),
         'Валюта': catalogDraft.currency,
+        'Криптовалюта для оплаты': `${catalogDraft.paymentCrypto} · ${cryptoWallets[catalogDraft.paymentCrypto]?.network || ''}`,
+        'Криптоадрес': cryptoWallets[catalogDraft.paymentCrypto]?.address || '',
         'Курс обновлён': catalogRateState.updatedAt || 'DKK base price',
       };
       submittedForm.querySelectorAll('[data-generated-order]').forEach((field) => field.remove());
