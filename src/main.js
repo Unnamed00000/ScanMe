@@ -34,7 +34,7 @@ let currentUser = null;
 let deferredInstallPrompt = null;
 let catalogDraft = {
   language: '', cardLanguage: 'en', currency: 'DKK', paymentCrypto: 'BTC', plan: 'monthly', theme: 'lime',
-  fullName: 'Имя Фамилия', role: '', headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
+  fullName: 'Имя Фамилия', role: '', socialLinks: [], headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
 };
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
 let catalogSettingsCache = null;
@@ -51,6 +51,14 @@ const cryptoPaymentTranslations = {
   da: { eyebrow: 'Kryptobetaling', title: 'Betal med kryptovaluta', help: 'Vælg abonnement og netværk, og åbn derefter din wallet eller scan QR-koden.', or: 'eller betal med krypto', choosePeriod: 'Vælg betalingsperiode', first: 'Beløb der skal betales nu', network: 'Netværk', address: 'Modtageradresse', copy: 'Kopiér adresse', open: 'Åbn wallet', copied: 'Adressen er kopieret', warning: 'Send kun det valgte aktiv via det angivne netværk. Betalingen bekræftes manuelt.' },
   de: { eyebrow: 'Krypto-Zahlung', title: 'Mit Kryptowährung bezahlen', help: 'Tarif und Netzwerk wählen, dann Wallet öffnen oder QR-Code scannen.', or: 'oder mit Krypto bezahlen', choosePeriod: 'Zahlungszeitraum wählen', first: 'Jetzt zu zahlender Betrag', network: 'Netzwerk', address: 'Empfangsadresse', copy: 'Adresse kopieren', open: 'Wallet öffnen', copied: 'Adresse kopiert', warning: 'Senden Sie nur den gewählten Vermögenswert über das angegebene Netzwerk. Zahlungen werden manuell bestätigt.' },
   ka: { eyebrow: 'კრიპტო გადახდა', title: 'გადახდა კრიპტოვალუტით', help: 'აირჩიეთ ტარიფი და ქსელი, შემდეგ გახსენით საფულე ან დაასკანირეთ QR კოდი.', or: 'ან გადაიხადეთ კრიპტოთი', choosePeriod: 'აირჩიეთ გადახდის პერიოდი', first: 'ახლა გადასახდელი თანხა', network: 'ქსელი', address: 'მიმღების მისამართი', copy: 'მისამართის კოპირება', open: 'საფულის გახსნა', copied: 'მისამართი დაკოპირდა', warning: 'გაგზავნეთ მხოლოდ არჩეული აქტივი მითითებული ქსელით. გადახდა დასტურდება ხელით.' },
+};
+
+const catalogSocialTranslations = {
+  en: { title: 'Social networks', help: 'Instagram, Facebook, TikTok, Telegram, website and more', add: 'Add social network', empty: 'No social networks added yet.', contacts: 'Contacts', addTitle: 'Add social network', editTitle: 'Edit social network', network: 'Social network', choose: 'Choose from the list', value: 'Link or username', valueHelp: 'Enter a full link or username', save: 'Save', remove: 'Remove', edit: 'Edit' },
+  ru: { title: 'Социальные сети', help: 'Instagram, Facebook, TikTok, Telegram, сайт и другие', add: 'Добавить соцсеть', empty: 'Социальные сети ещё не добавлены.', contacts: 'Контакты', addTitle: 'Добавить соцсеть', editTitle: 'Редактировать соцсеть', network: 'Социальная сеть', choose: 'Выберите из списка', value: 'Ссылка или username', valueHelp: 'Можно вставить полную ссылку или имя пользователя', save: 'Сохранить', remove: 'Удалить', edit: 'Редактировать' },
+  da: { title: 'Sociale medier', help: 'Instagram, Facebook, TikTok, Telegram, hjemmeside og flere', add: 'Tilføj socialt medie', empty: 'Ingen sociale medier tilføjet endnu.', contacts: 'Kontakter', addTitle: 'Tilføj socialt medie', editTitle: 'Rediger socialt medie', network: 'Socialt medie', choose: 'Vælg fra listen', value: 'Link eller brugernavn', valueHelp: 'Indtast et komplet link eller brugernavn', save: 'Gem', remove: 'Slet', edit: 'Rediger' },
+  de: { title: 'Soziale Netzwerke', help: 'Instagram, Facebook, TikTok, Telegram, Website und weitere', add: 'Soziales Netzwerk hinzufügen', empty: 'Noch keine sozialen Netzwerke hinzugefügt.', contacts: 'Kontakte', addTitle: 'Soziales Netzwerk hinzufügen', editTitle: 'Soziales Netzwerk bearbeiten', network: 'Soziales Netzwerk', choose: 'Aus Liste wählen', value: 'Link oder Benutzername', valueHelp: 'Vollständigen Link oder Benutzernamen eingeben', save: 'Speichern', remove: 'Löschen', edit: 'Bearbeiten' },
+  ka: { title: 'სოციალური ქსელები', help: 'Instagram, Facebook, TikTok, Telegram, ვებსაიტი და სხვა', add: 'სოციალური ქსელის დამატება', empty: 'სოციალური ქსელები ჯერ არ არის დამატებული.', contacts: 'კონტაქტები', addTitle: 'სოციალური ქსელის დამატება', editTitle: 'სოციალური ქსელის რედაქტირება', network: 'სოციალური ქსელი', choose: 'აირჩიეთ სიიდან', value: 'ბმული ან username', valueHelp: 'შეიყვანეთ სრული ბმული ან მომხმარებლის სახელი', save: 'შენახვა', remove: 'წაშლა', edit: 'რედაქტირება' },
 };
 
 const defaultCatalogSettings = () => ({
@@ -362,7 +370,7 @@ function drawOrderBrand(context, palette) {
   context.fillText('SCANME', 164, 113);
 }
 
-async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description }) {
+async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description, socialLinks = [] }) {
   await document.fonts?.ready;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -410,14 +418,16 @@ async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role,
   context.font = `500 27px ${canvasFontFamily(fonts.body)}`;
   context.fillText(description, 540, 832);
 
-  const contactLabels = [copy.call, copy.email, copy.website].map((label) => String(label).toUpperCase());
-  contactLabels.forEach((label, index) => {
-    const x = 238 + index * 302;
+  const contactItems = socialLinks.length
+    ? socialLinks.slice(0, 3).map((item) => ({ label: socialNetwork(item.network).name.toUpperCase(), icon: socialNetwork(item.network).icon }))
+    : [{ label: copy.call, icon: '☎' }, { label: copy.email, icon: '@' }, { label: copy.website, icon: '⌁' }];
+  contactItems.forEach((item, index) => {
+    const x = 540 - ((contactItems.length - 1) * 302) / 2 + index * 302;
     roundedCanvasRect(context, x - 68, 902, 136, 136, 36);
     context.fillStyle = 'rgba(255,255,255,.08)'; context.fill();
     context.strokeStyle = 'rgba(255,255,255,.18)'; context.lineWidth = 2; context.stroke();
-    context.fillStyle = palette.accent; context.font = `700 34px ${canvasFontFamily(fonts.contact)}`; context.fillText(index === 0 ? '☎' : index === 1 ? '@' : '⌁', x, 982);
-    context.fillStyle = 'rgba(255,255,255,.68)'; context.font = `700 17px ${canvasFontFamily(fonts.contact)}`; context.fillText(label, x, 1068);
+    context.fillStyle = palette.accent; context.font = `700 34px ${canvasFontFamily(fonts.contact)}`; context.fillText(item.icon, x, 982);
+    context.fillStyle = 'rgba(255,255,255,.68)'; context.font = `700 17px ${canvasFontFamily(fonts.contact)}`; context.fillText(String(item.label).toUpperCase(), x, 1068);
   });
   roundedCanvasRect(context, 250, 1132, 580, 82, 25);
   context.fillStyle = palette.accent; context.fill();
@@ -593,6 +603,7 @@ async function renderCatalog() {
   const language = catalogDraft.language;
   const t = catalogText(language);
   const cryptoT = cryptoPaymentTranslations[language] || cryptoPaymentTranslations.en;
+  const socialT = catalogSocialTranslations[language] || catalogSocialTranslations.en;
   const cardCopy = publicTranslations[catalogDraft.cardLanguage] || publicTranslations.en;
   const settings = normalizeCatalogSettings(catalogSettingsCache);
   const plans = Object.fromEntries(settings.plans.filter((plan) => plan.enabled).map((plan) => {
@@ -660,7 +671,7 @@ async function renderCatalog() {
                 <p class="identity__role" id="catalog-preview-role">${escapeHtml(catalogDraft.role || t.demoRole)}</p>
                 <p class="identity__bio" id="catalog-preview-bio">${catalogText(catalogDraft.cardLanguage).demoBio}</p>
               </section>
-              <section class="contact-dock"><div class="contact-links"><span><i>${icons.phone}</i><small id="catalog-preview-call">${cardCopy.call}</small></span><span><i>${icons.mail}</i><small id="catalog-preview-email">${cardCopy.email}</small></span><span><i>${icons.globe}</i><small id="catalog-preview-website">${cardCopy.website}</small></span></div><button class="save-contact" type="button">${icons.plus}<span id="catalog-preview-save">${cardCopy.saveContact}</span></button></section>
+              <section class="contact-dock"><div class="contact-links" id="catalog-preview-contacts"><span><i>${icons.phone}</i><small>${cardCopy.call}</small></span><span><i>${icons.mail}</i><small>${cardCopy.email}</small></span><span><i>${icons.globe}</i><small>${cardCopy.website}</small></span></div><button class="save-contact" type="button">${icons.plus}<span id="catalog-preview-save">${cardCopy.saveContact}</span></button></section>
             </div>
           </div>
           <div class="catalog-controls">
@@ -672,6 +683,10 @@ async function renderCatalog() {
             ${catalogFontSelect('catalogSecondaryFont', t.secondaryFont, catalogDraft.secondaryFont)}
             ${catalogFontSelect('catalogBodyFont', t.bodyFont, catalogDraft.bodyFont)}
             ${catalogFontSelect('catalogContactFont', t.contactFont, catalogDraft.contactFont)}
+            <div class="catalog-social-builder">
+              <div class="social-links-heading"><div><b>${escapeHtml(socialT.title)}</b><small>${escapeHtml(socialT.help)}</small></div><button class="button button--social-add" id="catalog-add-social" type="button">${icons.plus}<span>${escapeHtml(socialT.add)}</span></button></div>
+              <div class="social-links-list" id="catalog-social-list"></div>
+            </div>
           </div>
         </section>
         <button class="catalog-mobile-preview" id="catalog-mobile-preview" type="button">${icons.user}<span>${t.livePreview}</span></button>
@@ -708,6 +723,22 @@ async function renderCatalog() {
     contact: document.querySelector('[name="catalogContactFont"]'),
   };
   const cardLanguageField = document.querySelector('[name="catalogCardLanguage"]');
+  const renderCatalogSocialRows = () => {
+    const list = document.querySelector('#catalog-social-list');
+    const links = Array.isArray(catalogDraft.socialLinks) ? catalogDraft.socialLinks : [];
+    list.innerHTML = links.length ? links.map((item, index) => {
+      const network = socialNetwork(item.network);
+      return `<article class="social-link-row"><span class="social-link-icon">${escapeHtml(network.icon)}</span><div><b>${escapeHtml(network.name)}</b><small>${escapeHtml(item.value)}</small></div><button class="icon-button catalog-social-edit" type="button" data-index="${index}" aria-label="${escapeHtml(socialT.edit)}">${icons.edit}</button><button class="icon-button catalog-social-delete" type="button" data-index="${index}" aria-label="${escapeHtml(socialT.remove)}">${icons.trash}</button></article>`;
+    }).join('') : `<p class="social-links-empty">${escapeHtml(socialT.empty)}</p>`;
+    list.querySelectorAll('.catalog-social-edit').forEach((button) => button.addEventListener('click', () => {
+      const index = Number(button.dataset.index);
+      showSocialLinkModal(links[index], (item) => { catalogDraft.socialLinks[index] = item; renderCatalogSocialRows(); syncCatalogPreview(); }, socialT);
+    }));
+    list.querySelectorAll('.catalog-social-delete').forEach((button) => button.addEventListener('click', () => {
+      catalogDraft.socialLinks.splice(Number(button.dataset.index), 1);
+      renderCatalogSocialRows(); syncCatalogPreview();
+    }));
+  };
   const syncCryptoPayment = async () => {
     const coin = catalogDraft.paymentCrypto in cryptoWallets ? catalogDraft.paymentCrypto : 'BTC';
     const wallet = cryptoWallets[coin];
@@ -783,13 +814,15 @@ async function renderCatalog() {
     document.querySelector('#catalog-preview-initials').textContent = getInitials(fullName) || 'ИФ';
     document.querySelector('#catalog-preview-label').textContent = liveCopy.digitalCard;
     document.querySelector('#catalog-preview-bio').textContent = catalogText(cardLanguageField.value).demoBio;
-    document.querySelector('#catalog-preview-call').textContent = liveCopy.call;
-    document.querySelector('#catalog-preview-email').textContent = liveCopy.email;
-    document.querySelector('#catalog-preview-website').textContent = liveCopy.website;
+    const socialItems = socialContactItems({ socialLinks: catalogDraft.socialLinks });
+    document.querySelector('#catalog-preview-contacts').innerHTML = socialItems.length
+      ? socialItems.map((item) => `<span><i>${item.icon}</i><small>${escapeHtml(item.label)}</small></span>`).join('')
+      : `<span><i>${icons.phone}</i><small>${liveCopy.call}</small></span><span><i>${icons.mail}</i><small>${liveCopy.email}</small></span><span><i>${icons.globe}</i><small>${liveCopy.website}</small></span>`;
     document.querySelector('#catalog-preview-save').textContent = liveCopy.saveContact;
   };
   document.querySelectorAll('[name="catalogTheme"]').forEach((field) => field.addEventListener('change', syncCatalogPreview));
   [nameInput, roleInput, cardLanguageField, ...Object.values(fontFields)].forEach((field) => field.addEventListener('input', syncCatalogPreview));
+  document.querySelector('#catalog-add-social').addEventListener('click', () => showSocialLinkModal(null, (item) => { catalogDraft.socialLinks.push(item); renderCatalogSocialRows(); syncCatalogPreview(); }, socialT));
   document.querySelector('#catalog-language').addEventListener('change', (event) => { catalogDraft.language = event.currentTarget.value; saveCatalogLanguage(catalogDraft.language); renderCatalog(); });
   document.querySelector('#catalog-fiat-currency').addEventListener('change', (event) => {
     catalogDraft.currency = event.currentTarget.value;
@@ -824,6 +857,7 @@ async function renderCatalog() {
   const previewColumn = document.querySelector('.catalog-preview-column');
   document.querySelector('#catalog-mobile-preview')?.addEventListener('click', () => previewColumn.classList.add('is-mobile-open'));
   document.querySelector('#catalog-preview-close')?.addEventListener('click', () => previewColumn.classList.remove('is-mobile-open'));
+  renderCatalogSocialRows();
   syncCatalogPreview();
   refreshCatalogRates();
   document.querySelector('#share-catalog').addEventListener('click', async () => {
@@ -864,7 +898,7 @@ async function renderCatalog() {
       const cardFile = await createOrderCardImage({
         theme: selectedTheme, themeImageUrl: selectedThemeUrl, fullName, role: roleInput.value.trim() || t.demoRole,
         fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
-        copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio,
+        copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio, socialLinks: catalogDraft.socialLinks,
       });
       const transfer = new DataTransfer();
       transfer.items.add(cardFile);
@@ -877,6 +911,7 @@ async function renderCatalog() {
         'Шрифт должности': fontName(fontFields.secondary),
         'Шрифт описания': fontName(fontFields.body),
         'Шрифт контактов': fontName(fontFields.contact),
+        'Социальные сети': catalogDraft.socialLinks.length ? catalogDraft.socialLinks.map((item) => `${socialNetwork(item.network).name}: ${item.value}`).join(' | ') : 'не добавлены',
         'Язык каталога': language,
         'Язык визитки': cardLanguageField.value,
         'Тариф': selectedPlan.label,
@@ -1426,16 +1461,16 @@ function renderLogin() {
   });
 }
 
-function showSocialLinkModal(existing, onSave) {
+function showSocialLinkModal(existing, onSave, copy = catalogSocialTranslations.ru) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = `
     <form class="social-modal" id="social-link-form">
       <button class="modal-close" type="button" aria-label="Закрыть">×</button>
-      <p class="eyebrow">Контакты</p><h2>${existing ? 'Редактировать соцсеть' : 'Добавить соцсеть'}</h2>
-      <label class="field"><span>Социальная сеть</span><select name="network" required><option value="">Выберите из списка</option>${socialNetworkOptions.map((network) => `<option value="${network.id}" ${existing?.network === network.id ? 'selected' : ''}>${network.name}</option>`).join('')}</select></label>
-      <label class="field social-value-field ${existing ? '' : 'is-hidden'}"><span>Ссылка или username</span><input name="value" value="${escapeHtml(existing?.value || '')}" maxlength="300" placeholder="@username или https://…"><small>Можно вставить полную ссылку или только имя пользователя</small></label>
-      <button class="button button--primary button--wide social-submit ${existing ? '' : 'is-hidden'}" type="submit">${existing ? icons.save : icons.plus} ${existing ? 'Сохранить' : 'Добавить'}</button>
+      <p class="eyebrow">${escapeHtml(copy.contacts)}</p><h2>${escapeHtml(existing ? copy.editTitle : copy.addTitle)}</h2>
+      <label class="field"><span>${escapeHtml(copy.network)}</span><select name="network" required><option value="">${escapeHtml(copy.choose)}</option>${socialNetworkOptions.map((network) => `<option value="${network.id}" ${existing?.network === network.id ? 'selected' : ''}>${network.name}</option>`).join('')}</select></label>
+      <label class="field social-value-field ${existing ? '' : 'is-hidden'}"><span>${escapeHtml(copy.value)}</span><input name="value" value="${escapeHtml(existing?.value || '')}" maxlength="300" placeholder="@username или https://…"><small>${escapeHtml(copy.valueHelp)}</small></label>
+      <button class="button button--primary button--wide social-submit ${existing ? '' : 'is-hidden'}" type="submit">${existing ? icons.save : icons.plus} ${escapeHtml(existing ? copy.save : copy.add)}</button>
     </form>`;
   document.body.append(backdrop);
   const form = backdrop.querySelector('#social-link-form');
@@ -1446,7 +1481,7 @@ function showSocialLinkModal(existing, onSave) {
     form.querySelector('.social-value-field').classList.toggle('is-hidden', !selected);
     form.querySelector('.social-submit').classList.toggle('is-hidden', !selected);
     valueField.required = selected;
-    if (selected) valueField.placeholder = networkField.value === 'website' ? 'https://example.com' : '@username или полная ссылка';
+    if (selected) valueField.placeholder = networkField.value === 'website' ? 'https://example.com' : `@username · ${copy.value}`;
   };
   const close = () => backdrop.remove();
   networkField.addEventListener('change', syncNetwork);

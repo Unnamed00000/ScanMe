@@ -555,7 +555,9 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-live-card .identity h1 { font-size: clamp(35px, 5vw, 58px); }
 .catalog-live-card .identity__bio { max-width: 330px; }
 .catalog-live-card .contact-links > span { display: grid; min-width: 76px; justify-items: center; gap: 7px; color: #9ba1aa; font-size: 9px; }
+.catalog-live-card .contact-links { flex-wrap: wrap; gap: 10px 4px; }
 .catalog-live-card .contact-links i { display: grid; width: 45px; height: 45px; place-items: center; border: 1px solid #ffffff1d; border-radius: 14px; color: var(--accent); background: #ffffff08; font-style: normal; }
+.catalog-live-card .contact-links i b { font-size: 9px; }
 .catalog-live-card .contact-links svg { width: 18px; height: 18px; }
 .catalog-live-card .save-contact { width: min(310px, 100%); }
 .catalog-controls { padding: 32px; border: 1px solid #dcddd7; border-radius: 25px; background: #fafaf7; box-shadow: 0 20px 55px #1111; }
@@ -566,6 +568,10 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-control input, .catalog-control select, .catalog-control textarea { width: 100%; min-height: 48px; padding: 0 13px; border: 1px solid #d9dbd4; border-radius: 12px; outline: none; color: #17191d; background: white; font: 500 12px 'Manrope'; transition: border-color .18s, box-shadow .18s; }
 .catalog-control textarea { min-height: 105px; padding-top: 12px; resize: vertical; }
 .catalog-control input:focus, .catalog-control select:focus, .catalog-control textarea:focus { border-color: #95b82d; box-shadow: 0 0 0 3px #e8f1cb; }
+.catalog-social-builder { margin-top: 25px; padding-top: 22px; border-top: 1px solid #d9dbd4; }
+.catalog-social-builder .social-links-heading { align-items: flex-start; }
+.catalog-social-builder .button--social-add { flex: 0 0 auto; }
+.catalog-social-builder .social-link-row { grid-template-columns: 42px minmax(0, 1fr) 38px 38px; }
 .catalog-order-section { display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: clamp(28px, 6vw, 78px); margin-top: 95px; padding: 85px 0 0; border-top: 1px solid #d7d9d1; }
 .catalog-order-copy { position: sticky; top: 30px; }
 .catalog-order-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; padding: 32px; border-radius: 25px; color: #111319; background: #111319; }
