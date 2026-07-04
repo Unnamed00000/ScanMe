@@ -471,8 +471,11 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-benefits p { margin: 9px 0 0; color: #818791; font-size: 11px; line-height: 1.6; }
 .catalog-gallery { padding: 95px max(20px, calc((100vw - 1100px) / 2)) 110px; background: #f2f3ed; color: #111319; }
 .catalog-pricing { margin-bottom: 95px; }
-.catalog-payment-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(310px, .75fr); align-items: start; gap: 18px; }
+.catalog-payment-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) 46px minmax(310px, .75fr); align-items: start; gap: 10px; }
 .catalog-pricing-main { min-width: 0; }
+.catalog-payment-divider { position: relative; display: flex; min-height: 100%; align-self: stretch; align-items: center; justify-content: center; }
+.catalog-payment-divider::before { position: absolute; inset: 0 50%; width: 1px; background: linear-gradient(transparent, #c7cbc1 18%, #c7cbc1 82%, transparent); content: ''; }
+.catalog-payment-divider span { position: relative; padding: 12px 7px; border: 1px solid #d6d9d0; border-radius: 20px; color: #60665d; background: #f2f3ed; font-size: 7px; font-weight: 900; letter-spacing: .08em; line-height: 1.35; text-align: center; text-transform: uppercase; writing-mode: vertical-rl; }
 .catalog-price-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
 .catalog-currency-groups { display: flex; align-items: end; gap: 10px; padding: 7px; border: 1px solid #dfe1da; border-radius: 15px; background: #e9ebe4; }
 .catalog-price-toolbar label { display: flex; align-items: center; gap: 9px; color: #626760; font-size: 10px; font-weight: 800; }
@@ -503,6 +506,14 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .crypto-symbol--trx { background: #ef232d; }
 .catalog-crypto-tabs b { font-size: 10px; }
 .catalog-crypto-tabs small { color: #808996; font-size: 8px; }
+.catalog-crypto-plan-picker { margin-top: 15px; }
+.catalog-crypto-plan-picker > span { display: block; margin-bottom: 7px; color: #89929e; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.catalog-crypto-plan-picker > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.catalog-crypto-plan-picker button { display: grid; min-width: 0; padding: 10px; border: 1px solid #ffffff14; border-radius: 13px; color: #dbe0e7; background: #ffffff07; text-align: left; }
+.catalog-crypto-plan-picker button.is-active { border-color: #74ddff; background: #74ddff12; box-shadow: 0 0 0 2px #74ddff12; }
+.catalog-crypto-plan-picker b { font-size: 8px; }
+.catalog-crypto-plan-picker strong { margin-top: 6px; color: #74ddff; font-family: 'Unbounded'; font-size: 10px; overflow-wrap: anywhere; }
+.catalog-crypto-plan-picker small { margin-top: 4px; color: #7e8792; font-size: 7px; }
 .catalog-crypto-amount { display: grid; margin: 17px 0 14px; padding: 15px; border: 1px solid #ffffff12; border-radius: 15px; background: #ffffff07; }
 .catalog-crypto-amount span { color: #89929e; font-size: 8px; font-weight: 800; text-transform: uppercase; }
 .catalog-crypto-amount strong { margin-top: 6px; color: #c9ff38; font-family: 'Unbounded'; font-size: clamp(20px, 2.3vw, 29px); letter-spacing: -.05em; overflow-wrap: anywhere; }
@@ -516,6 +527,9 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .catalog-crypto-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .catalog-crypto-actions .button { min-height: 43px; padding: 0 9px; font-size: 8px; }
 .catalog-crypto-actions svg { width: 14px; height: 14px; }
+.catalog-copy-button { border-color: #45505e; color: #f3f6f9; background: #202731; }
+.catalog-copy-button:hover { border-color: #69788a; background: #2a3340; }
+.catalog-copy-button.is-copied { border-color: #9bc62c; color: #dfff83; background: #28331b; }
 .catalog-crypto-warning { margin: 13px 0 0; color: #7f8994; font-size: 7.5px; line-height: 1.55; }
 .catalog-design-heading { padding-top: 85px; border-top: 1px solid #d7d9d1; }
 .catalog-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 34px; }
@@ -587,6 +601,9 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 
 @media (max-width: 850px) {
   .catalog-payment-layout { grid-template-columns: 1fr; }
+  .catalog-payment-divider { min-height: 48px; }
+  .catalog-payment-divider::before { inset: 50% 0 auto; width: auto; height: 1px; background: linear-gradient(90deg, transparent, #c7cbc1 18%, #c7cbc1 82%, transparent); }
+  .catalog-payment-divider span { padding: 7px 12px; writing-mode: horizontal-tb; }
   .catalog-crypto-panel { position: static; }
   .admin-layout { display: block; }
   .sidebar { position: fixed; left: 0; top: 0; width: 255px; transform: translateX(-100%); transition: transform .25s; box-shadow: 20px 0 50px #0002; }

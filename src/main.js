@@ -46,11 +46,11 @@ const cryptoWallets = {
 };
 
 const cryptoPaymentTranslations = {
-  en: { eyebrow: 'Crypto payment', title: 'Pay with cryptocurrency', help: 'Choose a network, copy the payment details or scan the QR code in your wallet.', first: 'First payment', network: 'Network', address: 'Receiving address', copy: 'Copy address', open: 'Open wallet', copied: 'Address copied', warning: 'Send only the selected asset through the specified network. Payments are confirmed manually.' },
-  ru: { eyebrow: 'Оплата криптовалютой', title: 'Оплатить криптовалютой', help: 'Выберите сеть, скопируйте данные для оплаты или отсканируйте QR-код в кошельке.', first: 'Первая оплата', network: 'Сеть', address: 'Адрес получения', copy: 'Копировать адрес', open: 'Открыть кошелёк', copied: 'Адрес скопирован', warning: 'Отправляйте только выбранную монету через указанную сеть. Платёж подтверждается вручную.' },
-  da: { eyebrow: 'Kryptobetaling', title: 'Betal med kryptovaluta', help: 'Vælg netværk, kopiér betalingsoplysningerne eller scan QR-koden i din wallet.', first: 'Første betaling', network: 'Netværk', address: 'Modtageradresse', copy: 'Kopiér adresse', open: 'Åbn wallet', copied: 'Adressen er kopieret', warning: 'Send kun det valgte aktiv via det angivne netværk. Betalingen bekræftes manuelt.' },
-  de: { eyebrow: 'Krypto-Zahlung', title: 'Mit Kryptowährung bezahlen', help: 'Netzwerk wählen, Zahlungsdaten kopieren oder den QR-Code mit der Wallet scannen.', first: 'Erste Zahlung', network: 'Netzwerk', address: 'Empfangsadresse', copy: 'Adresse kopieren', open: 'Wallet öffnen', copied: 'Adresse kopiert', warning: 'Senden Sie nur den gewählten Vermögenswert über das angegebene Netzwerk. Zahlungen werden manuell bestätigt.' },
-  ka: { eyebrow: 'კრიპტო გადახდა', title: 'გადახდა კრიპტოვალუტით', help: 'აირჩიეთ ქსელი, დააკოპირეთ მონაცემები ან დაასკანირეთ QR კოდი საფულით.', first: 'პირველი გადახდა', network: 'ქსელი', address: 'მიმღების მისამართი', copy: 'მისამართის კოპირება', open: 'საფულის გახსნა', copied: 'მისამართი დაკოპირდა', warning: 'გაგზავნეთ მხოლოდ არჩეული აქტივი მითითებული ქსელით. გადახდა დასტურდება ხელით.' },
+  en: { eyebrow: 'Crypto payment', title: 'Pay with cryptocurrency', help: 'Choose a plan and network, then open your wallet or scan the QR code.', or: 'or pay with crypto', choosePeriod: 'Choose billing period', first: 'Amount to pay now', network: 'Network', address: 'Receiving address', copy: 'Copy address', open: 'Open wallet', copied: 'Address copied', warning: 'Send only the selected asset through the specified network. Payments are confirmed manually.' },
+  ru: { eyebrow: 'Оплата криптовалютой', title: 'Оплатить криптовалютой', help: 'Выберите тариф и сеть, затем откройте кошелёк или отсканируйте QR-код.', or: 'или оплатите криптовалютой', choosePeriod: 'Выберите период оплаты', first: 'Сумма к оплате сейчас', network: 'Сеть', address: 'Адрес получения', copy: 'Копировать адрес', open: 'Открыть кошелёк', copied: 'Адрес скопирован', warning: 'Отправляйте только выбранную монету через указанную сеть. Платёж подтверждается вручную.' },
+  da: { eyebrow: 'Kryptobetaling', title: 'Betal med kryptovaluta', help: 'Vælg abonnement og netværk, og åbn derefter din wallet eller scan QR-koden.', or: 'eller betal med krypto', choosePeriod: 'Vælg betalingsperiode', first: 'Beløb der skal betales nu', network: 'Netværk', address: 'Modtageradresse', copy: 'Kopiér adresse', open: 'Åbn wallet', copied: 'Adressen er kopieret', warning: 'Send kun det valgte aktiv via det angivne netværk. Betalingen bekræftes manuelt.' },
+  de: { eyebrow: 'Krypto-Zahlung', title: 'Mit Kryptowährung bezahlen', help: 'Tarif und Netzwerk wählen, dann Wallet öffnen oder QR-Code scannen.', or: 'oder mit Krypto bezahlen', choosePeriod: 'Zahlungszeitraum wählen', first: 'Jetzt zu zahlender Betrag', network: 'Netzwerk', address: 'Empfangsadresse', copy: 'Adresse kopieren', open: 'Wallet öffnen', copied: 'Adresse kopiert', warning: 'Senden Sie nur den gewählten Vermögenswert über das angegebene Netzwerk. Zahlungen werden manuell bestätigt.' },
+  ka: { eyebrow: 'კრიპტო გადახდა', title: 'გადახდა კრიპტოვალუტით', help: 'აირჩიეთ ტარიფი და ქსელი, შემდეგ გახსენით საფულე ან დაასკანირეთ QR კოდი.', or: 'ან გადაიხადეთ კრიპტოთი', choosePeriod: 'აირჩიეთ გადახდის პერიოდი', first: 'ახლა გადასახდელი თანხა', network: 'ქსელი', address: 'მიმღების მისამართი', copy: 'მისამართის კოპირება', open: 'საფულის გახსნა', copied: 'მისამართი დაკოპირდა', warning: 'გაგზავნეთ მხოლოდ არჩეული აქტივი მითითებული ქსელით. გადახდა დასტურდება ხელით.' },
 };
 
 const defaultCatalogSettings = () => ({
@@ -635,14 +635,16 @@ async function renderCatalog() {
                 ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
               </div>
             </div>
+            <div class="catalog-payment-divider" aria-hidden="true"><span>${escapeHtml(cryptoT.or)}</span></div>
             <aside class="catalog-crypto-panel">
               <p class="eyebrow">${escapeHtml(cryptoT.eyebrow)}</p>
               <h3>${escapeHtml(cryptoT.title)}</h3><p class="catalog-crypto-help">${escapeHtml(cryptoT.help)}</p>
               <div class="catalog-crypto-tabs">${catalogCryptoCurrencies.map((coin) => `<button type="button" data-crypto-coin="${coin}" class="${catalogDraft.paymentCrypto === coin ? 'is-active' : ''}"><span class="crypto-symbol crypto-symbol--${coin.toLowerCase()}">${coin === 'BTC' ? '₿' : 'T'}</span><b>${coin === 'BTC' ? 'Bitcoin' : 'TRON'}</b><small>${coin === 'BTC' ? 'BTC' : 'TRC20'}</small></button>`).join('')}</div>
+              <div class="catalog-crypto-plan-picker"><span>${escapeHtml(cryptoT.choosePeriod)}</span><div>${Object.entries(plans).map(([id, plan]) => `<button type="button" data-crypto-plan="${escapeHtml(id)}" class="${catalogDraft.plan === id ? 'is-active' : ''}"><b>${escapeHtml(plan.label)}</b><strong data-crypto-plan-amount="${escapeHtml(id)}">…</strong><small>${escapeHtml(plan.period)}</small></button>`).join('')}</div></div>
               <div class="catalog-crypto-amount"><span>${escapeHtml(cryptoT.first)}</span><strong id="catalog-crypto-amount">…</strong><small id="catalog-crypto-network"></small></div>
               <div class="catalog-crypto-qr"><img id="catalog-crypto-qr" alt="Crypto payment QR code"><span>SCAN TO PAY</span></div>
               <div class="catalog-crypto-address"><span>${escapeHtml(cryptoT.address)}</span><code id="catalog-crypto-address"></code></div>
-              <div class="catalog-crypto-actions"><button class="button button--ghost" id="catalog-copy-crypto" type="button">${icons.copy} ${escapeHtml(cryptoT.copy)}</button><a class="button button--primary" id="catalog-open-wallet" href="#">${icons.arrow} ${escapeHtml(cryptoT.open)}</a></div>
+              <div class="catalog-crypto-actions"><button class="button catalog-copy-button" id="catalog-copy-crypto" type="button">${icons.copy}<span>${escapeHtml(cryptoT.copy)}</span></button><a class="button button--primary" id="catalog-open-wallet" href="#">${icons.arrow} ${escapeHtml(cryptoT.open)}</a></div>
               <p class="catalog-crypto-warning">${escapeHtml(cryptoT.warning)}</p>
             </aside>
           </div>
@@ -724,6 +726,14 @@ async function renderCatalog() {
     document.querySelector('#catalog-crypto-address').textContent = wallet.address;
     document.querySelector('#catalog-open-wallet').href = paymentUri;
     document.querySelectorAll('[data-crypto-coin]').forEach((button) => button.classList.toggle('is-active', button.dataset.cryptoCoin === coin));
+    document.querySelectorAll('[data-crypto-plan]').forEach((button) => {
+      const planId = button.dataset.cryptoPlan;
+      const option = plans[planId];
+      const optionAmount = option && catalogRateState.rates[coin] ? option.first * catalogRateState.rates[coin] : null;
+      button.classList.toggle('is-active', planId === catalogDraft.plan);
+      const amountNode = button.querySelector('[data-crypto-plan-amount]');
+      if (amountNode) amountNode.textContent = optionAmount == null ? '…' : `${optionAmount.toFixed(coin === 'BTC' ? 8 : 4)} ${coin}`;
+    });
     try {
       const qrData = await QRCode.toDataURL(wallet.address, { width: 520, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#0a0d12', light: '#ffffff' } });
       if (catalogDraft.paymentCrypto === coin) document.querySelector('#catalog-crypto-qr').src = qrData;
@@ -790,10 +800,24 @@ async function renderCatalog() {
     updateCatalogPrices();
   });
   document.querySelectorAll('[data-crypto-coin]').forEach((button) => button.addEventListener('click', () => { catalogDraft.paymentCrypto = button.dataset.cryptoCoin; syncCryptoPayment(); }));
+  document.querySelectorAll('[data-crypto-plan]').forEach((button) => button.addEventListener('click', () => {
+    catalogDraft.plan = button.dataset.cryptoPlan;
+    document.querySelectorAll('[name="catalogPlan"]').forEach((field) => { field.checked = field.value === catalogDraft.plan; });
+    document.querySelectorAll('.catalog-plan').forEach((plan) => { plan.querySelector('i').textContent = plan.querySelector('input').checked ? t.selected : t.choosePlan; });
+    syncCryptoPayment();
+  }));
   document.querySelector('#catalog-copy-crypto').addEventListener('click', async () => {
     const address = cryptoWallets[catalogDraft.paymentCrypto]?.address;
     if (!address) return;
-    try { await navigator.clipboard.writeText(address); toast(cryptoT.copied); }
+    const button = document.querySelector('#catalog-copy-crypto');
+    const label = button.querySelector('span');
+    try {
+      await navigator.clipboard.writeText(address);
+      label.textContent = cryptoT.copied;
+      button.classList.add('is-copied');
+      toast(cryptoT.copied);
+      setTimeout(() => { label.textContent = cryptoT.copy; button.classList.remove('is-copied'); }, 1800);
+    }
     catch { toast(address); }
   });
   document.querySelectorAll('[name="catalogPlan"]').forEach((field) => field.addEventListener('change', (event) => {
