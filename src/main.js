@@ -1974,9 +1974,19 @@ async function showQrModal(slug, redirectOnClose = false) {
     downloadButton.disabled = false;
   } catch (error) {
     console.error('QR card rendering failed', error);
-    status.textContent = 'Не удалось создать QR-карту. Закройте окно и попробуйте ещё раз.';
-    status.classList.add('is-error');
-    toast('Не удалось создать QR-карту. Попробуйте ещё раз.', 'error');
+    try {
+      if (!qrCanvas.width || !qrCanvas.height) throw error;
+      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
+      status.remove();
+      printButton.disabled = false;
+      downloadButton.disabled = false;
+      toast('QR-карта создана в резервном оформлении.');
+    } catch (fallbackError) {
+      console.error('Fallback QR card rendering failed', fallbackError);
+      status.textContent = `Не удалось создать QR-карту: ${fallbackError?.message || error?.message || 'неизвестная ошибка'}`;
+      status.classList.add('is-error');
+      toast('Не удалось создать QR-карту. Попробуйте ещё раз.', 'error');
+    }
   }
   printButton.addEventListener('click', () => printQrBankCard(canvas, `${displayName} — ${copy.digitalCard}`));
   downloadButton.addEventListener('click', () => {
