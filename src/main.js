@@ -285,6 +285,33 @@ function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImag
   context.shadowBlur = 0;
 }
 
+function drawQrBankCardFallback(canvas, qrCanvas, { name, label, palette }) {
+  canvas.width = QR_CARD_WIDTH_PX;
+  canvas.height = QR_CARD_HEIGHT_PX;
+  const context = canvas.getContext('2d');
+  context.fillStyle = palette.dark;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  roundedCanvasRect(context, 42, 42, 530, 530, 34);
+  context.fillStyle = palette.light;
+  context.fill();
+  context.drawImage(qrCanvas, 66, 66, 482, 482);
+  context.textAlign = 'left';
+  context.fillStyle = palette.accent;
+  context.font = '700 22px sans-serif';
+  context.fillText(String(label || 'Digital business card').toUpperCase(), 620, 132, 320);
+  context.fillStyle = '#fff';
+  context.font = '700 42px sans-serif';
+  const fallbackName = String(name || 'SCANME');
+  context.fillText(fallbackName, 620, 235, 320);
+  context.textAlign = 'center';
+  context.fillStyle = 'rgba(255,255,255,.65)';
+  context.font = '700 18px sans-serif';
+  context.fillText('SCAN TO OPEN', 790, 478);
+  context.fillStyle = palette.accent;
+  context.font = '700 27px sans-serif';
+  context.fillText('SCANME', 790, 548);
+}
+
 function printQrBankCard(canvas, title) {
   const printWindow = window.open('', '_blank', 'width=900,height=650');
   if (!printWindow) {
@@ -1936,7 +1963,12 @@ async function showQrModal(slug, redirectOnClose = false) {
         toast('Фон временно не загрузился. QR-карта создана без фона.', 'error');
       }
     }
-    drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
+    try {
+      drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
+    } catch (renderError) {
+      console.warn('Primary QR card renderer failed; using fallback', renderError);
+      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
+    }
     status.remove();
     printButton.disabled = false;
     downloadButton.disabled = false;
