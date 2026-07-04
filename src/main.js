@@ -203,13 +203,14 @@ const QR_CARD_HEIGHT_MM = 52;
 const QR_CARD_WIDTH_PX = 987;
 const QR_CARD_HEIGHT_PX = 614;
 
-function wrapQrCardName(context, value, maxWidth) {
+function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
+  const lineLimit = Math.max(1, Number(maxLines) || 3);
   const words = String(value || '').trim().split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
   words.forEach((word) => {
     const candidate = line ? `${line} ${word}` : word;
-    if (line && context.measureText(candidate).width > maxWidth && lines.length < maxLines - 1) {
+    if (line && context.measureText(candidate).width > maxWidth && lines.length < lineLimit - 1) {
       lines.push(line);
       line = word;
     } else {
