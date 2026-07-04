@@ -247,14 +247,45 @@ function printQrBankCard(canvas, title) {
   printWindow.document.close();
 }
 
-function loadCanvasImage(url) {
+function loadCanvasImage(url, timeoutMs = 6000) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      callback(value);
+    };
+    const timer = window.setTimeout(() => {
+      image.src = '';
+      finish(reject, new Error('Изображение загружается слишком долго.'));
+    }, timeoutMs);
     image.crossOrigin = 'anonymous';
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', () => reject(new Error('Не удалось загрузить фон для карточки.')));
+    image.addEventListener('load', () => finish(resolve, image));
+    image.addEventListener('error', () => finish(reject, new Error('Не удалось загрузить фон для карточки.')));
     image.src = url;
   });
+}
+
+function canvasImageCandidates(url) {
+  const value = String(url || '').trim();
+  if (!value) return [];
+  const githubMatch = value.match(/^https:\/\/raw\.githubusercontent\.com\/Unnamed00000\/ScanMe\/main\/themes\/([^?#]+)$/i);
+  const localUrl = githubMatch ? `${window.location.origin}/ScanMe/themes/${encodeURIComponent(decodeURIComponent(githubMatch[1]))}` : '';
+  return [...new Set([localUrl, value].filter(Boolean))];
+}
+
+async function loadCanvasImageSafely(url) {
+  let lastError;
+  for (const candidate of canvasImageCandidates(url)) {
+    try {
+      return await loadCanvasImage(candidate, 4500);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Не удалось загрузить фон для карточки.');
 }
 
 function drawCoverImage(context, image, width, height) {
@@ -1601,24 +1632,45 @@ async function showQrModal(slug, redirectOnClose = false) {
   backdrop.innerHTML = `
     <section class="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title">
       <button class="modal-close" aria-label="Закрыть">×</button><p class="eyebrow">${escapeHtml(themeName)} · ${QR_CARD_WIDTH_MM} × ${QR_CARD_HEIGHT_MM} мм</p><h2 id="qr-title">QR-карта для печати</h2><p>После ламинации с рамкой около 1 мм получится размер банковской карты.</p>
-      <div class="qr-canvas-wrap"><canvas id="qr-canvas"></canvas></div>
+      <div class="qr-canvas-wrap"><canvas id="qr-canvas"></canvas><span class="qr-render-status" id="qr-render-status">Готовим QR-карту…</span></div>
       <div class="share-url"><span>${escapeHtml(url)}</span><button class="icon-button" id="copy-url" title="Копировать">${icons.copy}</button></div>
-      <div class="modal-actions modal-actions--qr"><a class="button button--ghost" href="#/p/${encodeURIComponent(slug)}" target="_blank">${icons.globe} Открыть</a><button class="button button--ghost" id="print-qr" type="button">${icons.download} Печать</button><button class="button button--primary" id="download-qr" type="button">${icons.download} PNG 300 DPI</button></div>
+      <div class="modal-actions modal-actions--qr"><a class="button button--ghost" href="#/p/${encodeURIComponent(slug)}" target="_blank">${icons.globe} Открыть</a><button class="button button--ghost" id="print-qr" type="button" disabled>${icons.download} Печать</button><button class="button button--primary" id="download-qr" type="button" disabled>${icons.download} PNG 300 DPI</button></div>
     </section>`;
   document.body.append(backdrop);
   const canvas = backdrop.querySelector('#qr-canvas');
-  const qrCanvas = document.createElement('canvas');
-  await QRCode.toCanvas(qrCanvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
-  drawQrBrand(qrCanvas, palette);
-  await document.fonts?.ready;
-  const backgroundImage = backgroundUrl ? await loadCanvasImage(backgroundUrl).catch(() => null) : null;
-  drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
+  const status = backdrop.querySelector('#qr-render-status');
+  const printButton = backdrop.querySelector('#print-qr');
+  const downloadButton = backdrop.querySelector('#download-qr');
   const close = () => { backdrop.remove(); if (redirectOnClose) window.location.hash = '#/admin'; };
   backdrop.querySelector('.modal-close').addEventListener('click', close);
   backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); });
   backdrop.querySelector('#copy-url').addEventListener('click', async () => { await navigator.clipboard.writeText(url); toast('Ссылка скопирована'); });
-  backdrop.querySelector('#print-qr').addEventListener('click', () => printQrBankCard(canvas, `${displayName} — ${copy.digitalCard}`));
-  backdrop.querySelector('#download-qr').addEventListener('click', () => {
+  const qrCanvas = document.createElement('canvas');
+  try {
+    await QRCode.toCanvas(qrCanvas, url, { width: 1024, margin: 4, color: { dark: palette.dark, light: palette.light }, errorCorrectionLevel: 'H' });
+    drawQrBrand(qrCanvas, palette);
+    await document.fonts?.ready;
+    let backgroundImage = null;
+    if (backgroundUrl) {
+      try {
+        backgroundImage = await loadCanvasImageSafely(backgroundUrl);
+      } catch (error) {
+        console.warn('QR background is unavailable', error);
+        toast('Фон временно не загрузился. QR-карта создана без фона.', 'error');
+      }
+    }
+    drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
+    status.remove();
+    printButton.disabled = false;
+    downloadButton.disabled = false;
+  } catch (error) {
+    console.error('QR card rendering failed', error);
+    status.textContent = 'Не удалось создать QR-карту. Закройте окно и попробуйте ещё раз.';
+    status.classList.add('is-error');
+    toast('Не удалось создать QR-карту. Попробуйте ещё раз.', 'error');
+  }
+  printButton.addEventListener('click', () => printQrBankCard(canvas, `${displayName} — ${copy.digitalCard}`));
+  downloadButton.addEventListener('click', () => {
     const link = document.createElement('a');
     link.download = `scanme-${slug}-qr-card-${QR_CARD_WIDTH_MM}x${QR_CARD_HEIGHT_MM}mm.png`;
     link.href = canvas.toDataURL('image/png');

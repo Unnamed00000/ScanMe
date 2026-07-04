@@ -310,8 +310,10 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .qr-modal .eyebrow { color: var(--qr-dark, #6b820f); }
 .qr-modal > p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
 .modal-close { position: absolute; width: 34px; height: 34px; right: 16px; top: 16px; border: 0; border-radius: 50%; background: #ecece6; cursor: pointer; font-size: 22px; }
-.qr-canvas-wrap { display: grid; width: min(550px, 100%); aspect-ratio: 83.6 / 52; margin: 24px auto 18px; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--qr-accent, #c9ff38) 40%, #ddd); border-radius: 18px; background: var(--qr-light, white); box-shadow: 0 18px 44px color-mix(in srgb, var(--qr-accent, #c9ff38) 22%, transparent); }
+.qr-canvas-wrap { position: relative; display: grid; width: min(550px, 100%); aspect-ratio: 83.6 / 52; margin: 24px auto 18px; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--qr-accent, #c9ff38) 40%, #ddd); border-radius: 18px; background: var(--qr-light, white); box-shadow: 0 18px 44px color-mix(in srgb, var(--qr-accent, #c9ff38) 22%, transparent); }
 .qr-canvas-wrap canvas { display: block; width: 100% !important; height: auto !important; }
+.qr-render-status { position: absolute; display: grid; max-width: 260px; min-height: 42px; padding: 10px 16px; place-items: center; border-radius: 13px; color: white; background: #080b10dc; font-size: 10px; font-weight: 800; line-height: 1.45; box-shadow: 0 12px 35px #0005; }
+.qr-render-status.is-error { color: #ffd7d7; background: #681f24e8; }
 .qr-modal .button--primary { color: var(--qr-dark, #090b10); background: var(--qr-accent, #c9ff38); }
 .share-url { display: flex; align-items: center; gap: 8px; padding: 7px 7px 7px 12px; border: 1px solid var(--line); border-radius: 11px; background: white; }
 .share-url span { flex: 1; overflow: hidden; color: #6f736c; font-size: 9px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
