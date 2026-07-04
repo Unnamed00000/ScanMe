@@ -49,6 +49,7 @@ const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}`;
 const THEME_MANIFEST_URL = `https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_BRANCH}/themes/custom-themes.json`;
 
 const LOCAL_KEY = 'scanme_profiles_v1';
+const CATALOG_SETTINGS_ID = '__catalog_settings__';
 
 function readLocal() {
   try {
@@ -106,12 +107,29 @@ export async function logout() {
 
 export async function listProfiles() {
   if (!isFirebaseConfigured) {
-    return Object.entries(readLocal()).filter(([key]) => key !== '__themes').map(([, value]) => value).sort((a, b) =>
+    return Object.entries(readLocal()).filter(([key]) => !key.startsWith('__')).map(([, value]) => value).sort((a, b) =>
       String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')),
     );
   }
   const result = await getDocs(query(collection(db, 'profiles'), orderBy('updatedAt', 'desc')));
-  return result.docs.map((item) => ({ id: item.id, ...item.data() }));
+  return result.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item) => !String(item.id).startsWith('__'));
+}
+
+export async function getCatalogSettings() {
+  if (!isFirebaseConfigured) return readLocal().__catalogSettings || null;
+  return normalizeSnapshot(await getDoc(doc(db, 'profiles', CATALOG_SETTINGS_ID)));
+}
+
+export async function saveCatalogSettings(settings) {
+  const payload = { ...settings, id: CATALOG_SETTINGS_ID, slug: CATALOG_SETTINGS_ID, published: true, contentType: 'settings', updatedAt: new Date().toISOString() };
+  if (!isFirebaseConfigured) {
+    const data = readLocal();
+    data.__catalogSettings = payload;
+    writeLocal(data);
+    return payload;
+  }
+  await setDoc(doc(db, 'profiles', CATALOG_SETTINGS_ID), { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+  return payload;
 }
 
 export async function getProfile(slug) {

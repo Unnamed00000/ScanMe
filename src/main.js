@@ -12,6 +12,7 @@ import {
 import {
   ADMIN_EMAIL,
   deleteTheme,
+  getCatalogSettings,
   getProfile,
   isFirebaseConfigured,
   listProfiles,
@@ -21,6 +22,7 @@ import {
   removeProfile,
   renameTheme,
   saveProfile,
+  saveCatalogSettings,
   uploadTheme,
   watchAuth,
 } from './store.js';
@@ -34,6 +36,30 @@ let catalogDraft = {
   fullName: 'Имя Фамилия', role: '', headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
 };
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
+let catalogSettingsCache = null;
+let catalogCustomThemesCache = null;
+
+const defaultCatalogSettings = () => ({
+  hiddenThemeIds: [],
+  plans: [
+    { id: 'monthly', enabled: true, title: '', subtitle: '', badge: '', first: 19.5, regular: 39, period: '', titleSize: 16, priceSize: 43, smallSize: 10 },
+    { id: 'yearly', enabled: true, title: '', subtitle: '', badge: '', first: 195, regular: 390, period: '', titleSize: 16, priceSize: 43, smallSize: 10 },
+  ],
+});
+
+function normalizeCatalogSettings(value = {}) {
+  const defaults = defaultCatalogSettings();
+  const plans = Array.isArray(value.plans) && value.plans.length ? value.plans : defaults.plans;
+  return {
+    hiddenThemeIds: Array.isArray(value.hiddenThemeIds) ? value.hiddenThemeIds.filter(Boolean) : [],
+    plans: plans.slice(0, 4).map((plan, index) => ({
+      id: String(plan.id || `plan-${index + 1}`), enabled: plan.enabled !== false,
+      title: String(plan.title || ''), subtitle: String(plan.subtitle || ''), badge: String(plan.badge || ''), period: String(plan.period || ''),
+      first: Math.max(0, Number(plan.first) || 0), regular: Math.max(0, Number(plan.regular) || 0),
+      titleSize: clampPhotoValue(plan.titleSize, 12, 30, 16), priceSize: clampPhotoValue(plan.priceSize, 24, 64, 43), smallSize: clampPhotoValue(plan.smallSize, 8, 20, 10),
+    })),
+  };
+}
 
 const serviceWorkerReady = 'serviceWorker' in navigator
   ? navigator.serviceWorker.register('/ScanMe/sw.js', { scope: '/ScanMe/' }).then(() => navigator.serviceWorker.ready).catch(() => null)
@@ -322,7 +348,7 @@ function drawOrderBrand(context, palette) {
   context.fillText('SCANME', 164, 113);
 }
 
-async function createOrderCardImage({ theme, fullName, role, fonts, copy, description }) {
+async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description }) {
   await document.fonts?.ready;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -331,9 +357,9 @@ async function createOrderCardImage({ theme, fullName, role, fonts, copy, descri
   const palette = qrPalette(theme);
   context.fillStyle = palette.dark;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  const themeImage = catalogThemeImages[theme];
+  const themeImage = themeImageUrl || catalogThemeImages[theme];
   if (themeImage) {
-    drawCoverImage(context, await loadCanvasImage(themeImage), canvas.width, canvas.height);
+    drawCoverImage(context, await loadCanvasImageSafely(themeImage), canvas.width, canvas.height);
     const shade = context.createLinearGradient(0, 0, 0, canvas.height);
     shade.addColorStop(0, 'rgba(3,6,9,.48)'); shade.addColorStop(.48, 'rgba(3,6,9,.34)'); shade.addColorStop(1, 'rgba(3,6,9,.88)');
     context.fillStyle = shade;
@@ -540,19 +566,31 @@ function bindPwaInstall(profile = null) {
   }));
 }
 
-function renderCatalog() {
+async function renderCatalog() {
+  if (!catalogSettingsCache || !catalogCustomThemesCache) {
+    const [savedSettings, customThemes] = await Promise.all([
+      getCatalogSettings().catch(() => null),
+      listThemes().catch(() => []),
+    ]);
+    catalogSettingsCache = normalizeCatalogSettings(savedSettings || {});
+    catalogCustomThemesCache = customThemes;
+  }
   if (!catalogDraft.language) catalogDraft.language = detectCatalogLanguage();
   const language = catalogDraft.language;
   const t = catalogText(language);
   const cardCopy = publicTranslations[catalogDraft.cardLanguage] || publicTranslations.en;
-  const plans = {
-    monthly: { regular: 39, first: 19.5, label: t.monthly, period: t.perMonth },
-    yearly: { regular: 390, first: 195, label: t.yearly, period: t.perYear },
-  };
-  const catalogThemes = themeOptions.map((theme) => `
-    <label class="catalog-theme theme-option theme-option--${theme.id}">
-      <input type="radio" name="catalogTheme" value="${theme.id}" ${catalogDraft.theme === theme.id ? 'checked' : ''}>
-      <span><i></i><b>${escapeHtml(language === 'ru' ? theme.name : (englishCatalogThemeNames[theme.id] || theme.name))}</b></span>
+  const settings = normalizeCatalogSettings(catalogSettingsCache);
+  const plans = Object.fromEntries(settings.plans.filter((plan) => plan.enabled).map((plan) => {
+    const standard = plan.id === 'monthly' || plan.id === 'yearly';
+    return [plan.id, { ...plan, label: plan.title || (plan.id === 'yearly' ? t.yearly : standard ? t.monthly : `Plan ${plan.id}`), period: plan.period || (plan.id === 'yearly' ? t.perYear : t.perMonth), subtitle: plan.subtitle || t.firstPayment, badge: plan.badge || t.save }];
+  }));
+  const allCatalogThemes = [...themeOptions, ...(catalogCustomThemesCache || [])].filter((theme) => !settings.hiddenThemeIds.includes(theme.id));
+  if (!allCatalogThemes.some((theme) => theme.id === catalogDraft.theme)) catalogDraft.theme = allCatalogThemes[0]?.id || 'lime';
+  if (!plans[catalogDraft.plan]) catalogDraft.plan = Object.keys(plans)[0] || '';
+  const catalogThemes = allCatalogThemes.map((theme) => `
+    <label class="catalog-theme theme-option theme-option--${theme.imageUrl ? 'custom' : theme.id}">
+      <input type="radio" name="catalogTheme" value="${escapeHtml(theme.id)}" data-theme-url="${escapeHtml(theme.imageUrl || '')}" ${catalogDraft.theme === theme.id ? 'checked' : ''}>
+      <span${theme.imageUrl ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}')"` : ''}><i></i><b>${escapeHtml(theme.imageUrl ? theme.name : (language === 'ru' ? theme.name : (englishCatalogThemeNames[theme.id] || theme.name)))}</b></span>
     </label>`).join('');
   const catalogFontSelect = (name, label, selected) => `<label class="catalog-control"><span>${label}</span><select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${font.id === selected ? 'selected' : ''}>${font.name.split(' — ')[0]}</option>`).join('')}</select></label>`;
   app.innerHTML = `
@@ -572,14 +610,14 @@ function renderCatalog() {
           <div class="catalog-section-heading"><div><p class="eyebrow">${t.pricingStep}</p><h2>${t.pricingTitle}</h2></div><p>${t.pricingHelp}</p></div>
           <div class="catalog-price-toolbar"><label><span>${t.currency}</span><select id="catalog-currency">${catalogCurrencies.map((currency) => `<option value="${currency}" ${catalogDraft.currency === currency ? 'selected' : ''}>${currency === 'TRX' ? 'TRX / TRON' : currency}</option>`).join('')}</select></label><small id="catalog-rate-status">${t.rateLoading}</small></div>
           <div class="catalog-plan-grid">
-            ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan"><input type="radio" name="catalogPlan" value="${id}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${t.save}</em><b>${plan.label}</b><strong data-plan="${id}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${t.firstPayment} · ${plan.period}</small><del><span data-plan="${id}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${plan.period}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
+            ${Object.entries(plans).map(([id, plan]) => `<label class="catalog-plan" style="--plan-title-size:${plan.titleSize}px;--plan-price-size:${plan.priceSize}px;--plan-small-size:${plan.smallSize}px"><input type="radio" name="catalogPlan" value="${escapeHtml(id)}" ${catalogDraft.plan === id ? 'checked' : ''}><span><em>${escapeHtml(plan.badge)}</em><b>${escapeHtml(plan.label)}</b><strong data-plan="${escapeHtml(id)}" data-price="first">${formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language)}</strong><small>${escapeHtml(plan.subtitle)} · ${escapeHtml(plan.period)}</small><del><span data-plan="${escapeHtml(id)}" data-price="regular">${formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language)}</span> ${escapeHtml(plan.period)}</del><i>${catalogDraft.plan === id ? t.selected : t.choosePlan}</i></span></label>`).join('')}
           </div>
         </section>
         <div class="catalog-section-heading catalog-design-heading"><div><p class="eyebrow">${t.designStep}</p><h2>${t.designTitle}</h2></div><p>${t.designHelp}</p></div>
         <div class="catalog-theme-grid">${catalogThemes}</div>
         <section class="catalog-configurator">
           <div class="catalog-preview-column">
-            <p class="eyebrow">${t.livePreview}</p>
+            <div class="catalog-preview-heading"><p class="eyebrow">${t.livePreview}</p><button class="catalog-preview-close" id="catalog-preview-close" type="button" aria-label="Close">×</button></div>
             <div class="public-card catalog-live-card theme-${catalogDraft.theme}" id="catalog-live-card">
               <div class="card-noise"></div><div class="orb orb--one"></div>
               <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="${t.share}">${icons.share}</button></header>
@@ -604,6 +642,7 @@ function renderCatalog() {
             ${catalogFontSelect('catalogContactFont', t.contactFont, catalogDraft.contactFont)}
           </div>
         </section>
+        <button class="catalog-mobile-preview" id="catalog-mobile-preview" type="button">${icons.user}<span>${t.livePreview}</span></button>
         <section class="catalog-order-section">
           <div class="catalog-order-copy"><p class="eyebrow">${t.orderStep}</p><h2>${t.orderTitle}</h2><p>${t.orderHelp}</p></div>
           <form class="catalog-order-form" id="catalog-order-form" action="https://formsubmit.co/${ADMIN_EMAIL}" method="POST" enctype="multipart/form-data">
@@ -639,8 +678,10 @@ function renderCatalog() {
   const cardLanguageField = document.querySelector('[name="catalogCardLanguage"]');
   const updateCatalogPrices = () => {
     Object.entries(plans).forEach(([id, plan]) => {
-      document.querySelector(`[data-plan="${id}"][data-price="first"]`).textContent = formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language);
-      document.querySelector(`[data-plan="${id}"][data-price="regular"]`).textContent = formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language);
+      const first = document.querySelector(`[data-plan="${CSS.escape(id)}"][data-price="first"]`);
+      const regular = document.querySelector(`[data-plan="${CSS.escape(id)}"][data-price="regular"]`);
+      if (first) first.textContent = formatCatalogPrice(plan.first, catalogDraft.currency, catalogRateState.rates, language);
+      if (regular) regular.textContent = formatCatalogPrice(plan.regular, catalogDraft.currency, catalogRateState.rates, language);
     });
     const status = document.querySelector('#catalog-rate-status');
     status.textContent = catalogRateState.failed ? t.rateError : catalogRateState.loading ? t.rateLoading : `${t.rateLive}${catalogRateState.updatedAt ? ` · ${new Date(catalogRateState.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}`;
@@ -654,14 +695,19 @@ function renderCatalog() {
     updateCatalogPrices();
   };
   const syncCatalogPreview = () => {
-    const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
+    const selectedThemeInput = document.querySelector('[name="catalogTheme"]:checked');
+    const selectedTheme = selectedThemeInput?.value || 'lime';
+    const customThemeUrl = selectedThemeInput?.dataset.themeUrl || '';
     catalogDraft.theme = selectedTheme;
     catalogDraft.fullName = nameInput.value;
     catalogDraft.role = roleInput.value;
     catalogDraft.cardLanguage = cardLanguageField.value;
     catalogDraft.headingFont = fontFields.heading.value; catalogDraft.secondaryFont = fontFields.secondary.value; catalogDraft.bodyFont = fontFields.body.value; catalogDraft.contactFont = fontFields.contact.value;
-    themeOptions.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
+    allCatalogThemes.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
+    liveCard.classList.toggle('theme-custom', Boolean(customThemeUrl));
     liveCard.classList.add(`theme-${selectedTheme}`);
+    if (customThemeUrl) liveCard.style.setProperty('--custom-theme-image', `url('${customThemeUrl}')`);
+    else liveCard.style.removeProperty('--custom-theme-image');
     liveCard.style.setProperty('--font-heading', fontStacks[fontFields.heading.value]);
     liveCard.style.setProperty('--font-secondary', fontStacks[fontFields.secondary.value]);
     liveCard.style.setProperty('--font-body', fontStacks[fontFields.body.value]);
@@ -686,6 +732,9 @@ function renderCatalog() {
     catalogDraft.plan = event.currentTarget.value;
     document.querySelectorAll('.catalog-plan').forEach((plan) => { plan.querySelector('i').textContent = plan.querySelector('input').checked ? t.selected : t.choosePlan; });
   }));
+  const previewColumn = document.querySelector('.catalog-preview-column');
+  document.querySelector('#catalog-mobile-preview')?.addEventListener('click', () => previewColumn.classList.add('is-mobile-open'));
+  document.querySelector('#catalog-preview-close')?.addEventListener('click', () => previewColumn.classList.remove('is-mobile-open'));
   syncCatalogPreview();
   refreshCatalogRates();
   document.querySelector('#share-catalog').addEventListener('click', async () => {
@@ -705,8 +754,10 @@ function renderCatalog() {
       toast('Форма заказа недоступна. Обновите страницу и попробуйте снова.', 'error');
       return;
     }
-    const selectedTheme = document.querySelector('[name="catalogTheme"]:checked')?.value || 'lime';
-    const themeName = themeOptions.find((theme) => theme.id === selectedTheme)?.name || selectedTheme;
+    const selectedThemeField = document.querySelector('[name="catalogTheme"]:checked');
+    const selectedTheme = selectedThemeField?.value || 'lime';
+    const selectedThemeUrl = selectedThemeField?.dataset.themeUrl || '';
+    const themeName = allCatalogThemes.find((theme) => theme.id === selectedTheme)?.name || selectedTheme;
     const fontName = (field) => fontOptions.find((font) => font.id === field.value)?.name || field.value;
     const button = submittedForm.querySelector('[type="submit"]');
     const attachmentField = submittedForm.querySelector('#catalog-order-attachment');
@@ -722,7 +773,7 @@ function renderCatalog() {
       const selectedPlan = plans[catalogDraft.plan];
       const selectedCardCopy = publicTranslations[cardLanguageField.value] || publicTranslations.en;
       const cardFile = await createOrderCardImage({
-        theme: selectedTheme, fullName, role: roleInput.value.trim() || t.demoRole,
+        theme: selectedTheme, themeImageUrl: selectedThemeUrl, fullName, role: roleInput.value.trim() || t.demoRole,
         fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
         copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio,
       });
@@ -1092,6 +1143,8 @@ function adminShell(content, active = 'profiles') {
         <nav class="sidebar__nav">
           <a class="nav-item ${active === 'profiles' ? 'is-active' : ''}" href="#/admin">${icons.user}<span>Публикации</span></a>
           <a class="nav-item ${active === 'new' ? 'is-active' : ''}" href="#/edit/new">${icons.plus}<span>Создать</span></a>
+          <a class="nav-item ${active === 'catalog' ? 'is-active' : ''}" href="#/catalog-admin">${icons.edit}<span>Управление каталогом</span></a>
+          <a class="nav-item" href="#/catalog" target="_blank">${icons.globe}<span>Открыть каталог</span></a>
           <button class="nav-item nav-button install-pwa-button" type="button">${icons.download}<span>Установить ScanMe</span></button>
         </nav>
         <div class="sidebar__foot">
@@ -1170,6 +1223,80 @@ async function renderAdmin() {
   } catch (error) {
     renderError('Не удалось загрузить публикации', error.message, '#/admin');
   }
+}
+
+async function renderCatalogAdmin() {
+  if (!currentUser) return renderLogin();
+  setLoading('Загружаем настройки каталога');
+  try {
+    const [savedSettings, customThemes] = await Promise.all([getCatalogSettings().catch(() => null), listThemes().catch(() => [])]);
+    const settings = normalizeCatalogSettings(savedSettings || {});
+    const allThemes = [...themeOptions, ...customThemes];
+    let draftPlans = settings.plans.map((plan) => ({ ...plan }));
+    const planRow = (plan, index) => `
+      <article class="catalog-plan-editor" data-plan-id="${escapeHtml(plan.id)}">
+        <div class="catalog-plan-editor__head"><b>Тариф ${index + 1}</b><button class="icon-button catalog-plan-remove" type="button" title="Убрать тариф">${icons.trash}</button></div>
+        <div class="fields-grid">
+          <label class="field"><span>Большой заголовок</span><input data-plan-field="title" value="${escapeHtml(plan.title)}" placeholder="Например, Месячный"></label>
+          <label class="field"><span>Значок / скидка</span><input data-plan-field="badge" value="${escapeHtml(plan.badge)}" placeholder="Например, Скидка 50%"></label>
+          <label class="field field--wide"><span>Маленький поясняющий текст</span><input data-plan-field="subtitle" value="${escapeHtml(plan.subtitle)}" placeholder="Например, Первая оплата"></label>
+          <label class="field"><span>Первая цена, DKK</span><input data-plan-field="first" type="number" min="0" step="0.01" value="${plan.first}"></label>
+          <label class="field"><span>Обычная цена, DKK</span><input data-plan-field="regular" type="number" min="0" step="0.01" value="${plan.regular}"></label>
+          <label class="field field--wide"><span>Период</span><input data-plan-field="period" value="${escapeHtml(plan.period)}" placeholder="Например, в месяц"></label>
+        </div>
+        <div class="catalog-size-controls">
+          <label><span>Размер заголовка <b>${plan.titleSize}px</b></span><input data-plan-field="titleSize" type="range" min="12" max="30" value="${plan.titleSize}"></label>
+          <label><span>Размер цены <b>${plan.priceSize}px</b></span><input data-plan-field="priceSize" type="range" min="24" max="64" value="${plan.priceSize}"></label>
+          <label><span>Размер маленького текста <b>${plan.smallSize}px</b></span><input data-plan-field="smallSize" type="range" min="8" max="20" value="${plan.smallSize}"></label>
+        </div>
+      </article>`;
+    app.innerHTML = adminShell(`
+      <main class="admin-content catalog-admin-page">
+        <div class="page-heading page-heading--editor"><div><p class="eyebrow">Личные настройки</p><h1>Управление каталогом</h1><p>Изменения видны всем посетителям каталога после сохранения.</p></div><div class="heading-actions"><a class="button button--ghost" href="#/catalog" target="_blank">${icons.globe} Открыть каталог</a><button class="button button--primary" type="submit" form="catalog-settings-form">${icons.save} Сохранить</button></div></div>
+        <form id="catalog-settings-form" class="editor-grid">
+          <section class="form-card"><div class="section-heading"><span>01</span><div><h2>Тарифы</h2><p>Можно оставить от одного до четырёх тарифов.</p></div></div><div id="catalog-plan-editors"></div><button class="button button--ghost" id="catalog-add-plan" type="button">${icons.plus} Добавить тариф</button></section>
+          <section class="form-card"><div class="section-heading"><span>02</span><div><h2>Оформления в каталоге</h2><p>Выключенное оформление останется в админке, но исчезнет из публичного каталога.</p></div></div><div class="catalog-theme-admin-grid">${allThemes.map((theme) => { const preview = theme.imageUrl || catalogThemeImages[theme.id] || ''; return `<label class="catalog-theme-admin"><input type="checkbox" value="${escapeHtml(theme.id)}" ${settings.hiddenThemeIds.includes(theme.id) ? '' : 'checked'}><span${preview ? ` style="--admin-theme:url('${escapeHtml(preview)}')"` : ''}><i></i><b>${escapeHtml(theme.name)}</b><small>${theme.imageUrl ? 'Добавлено вами' : 'Стандартное'}</small></span></label>`; }).join('')}</div></section>
+        </form>
+      </main>`, 'catalog');
+    bindAdminShell();
+    const form = document.querySelector('#catalog-settings-form');
+    const planEditors = document.querySelector('#catalog-plan-editors');
+    const renderPlanEditors = () => {
+      planEditors.innerHTML = draftPlans.map(planRow).join('');
+      planEditors.querySelectorAll('input[type="range"]').forEach((range) => range.addEventListener('input', () => { range.closest('label').querySelector('b').textContent = `${range.value}px`; }));
+      planEditors.querySelectorAll('.catalog-plan-remove').forEach((button) => button.addEventListener('click', () => {
+        if (draftPlans.length <= 1) return toast('В каталоге должен остаться хотя бы один тариф.', 'error');
+        const row = button.closest('.catalog-plan-editor');
+        draftPlans = draftPlans.filter((plan) => plan.id !== row.dataset.planId);
+        renderPlanEditors();
+      }));
+    };
+    renderPlanEditors();
+    document.querySelector('#catalog-add-plan').addEventListener('click', () => {
+      if (draftPlans.length >= 4) return toast('Можно добавить не больше четырёх тарифов.', 'error');
+      draftPlans.push({ id: `custom-${Date.now().toString(36)}`, enabled: true, title: '', subtitle: '', badge: '', first: 0, regular: 0, period: '', titleSize: 16, priceSize: 43, smallSize: 10 });
+      renderPlanEditors();
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = document.querySelector('button[form="catalog-settings-form"]');
+      button.disabled = true; button.textContent = 'Сохраняем…';
+      try {
+        const plans = [...planEditors.querySelectorAll('.catalog-plan-editor')].map((row) => {
+          const field = (name) => row.querySelector(`[data-plan-field="${name}"]`).value;
+          return { id: row.dataset.planId, enabled: true, title: field('title').trim(), subtitle: field('subtitle').trim(), badge: field('badge').trim(), period: field('period').trim(), first: Number(field('first')), regular: Number(field('regular')), titleSize: Number(field('titleSize')), priceSize: Number(field('priceSize')), smallSize: Number(field('smallSize')) };
+        });
+        if (plans.some((plan) => !plan.title && !['monthly', 'yearly'].includes(plan.id))) throw new Error('Укажите заголовок для каждого добавленного тарифа.');
+        const visibleThemeIds = [...form.querySelectorAll('.catalog-theme-admin input:checked')].map((input) => input.value);
+        if (!visibleThemeIds.length) throw new Error('Оставьте в каталоге хотя бы одно оформление.');
+        const nextSettings = normalizeCatalogSettings({ plans, hiddenThemeIds: allThemes.map((theme) => theme.id).filter((id) => !visibleThemeIds.includes(id)) });
+        await saveCatalogSettings(nextSettings);
+        catalogSettingsCache = nextSettings; catalogCustomThemesCache = customThemes;
+        toast('Настройки каталога сохранены');
+      } catch (error) { toast(error.message, 'error'); }
+      finally { button.disabled = false; button.innerHTML = `${icons.save} Сохранить`; }
+    });
+  } catch (error) { renderError('Не удалось загрузить настройки каталога', error.message, '#/admin'); }
 }
 
 function renderLogin() {
@@ -1490,6 +1617,7 @@ async function renderEditor(slug) {
   document.querySelector('#add-theme-button').addEventListener('click', () => {
     showThemeUploadModal((theme) => {
       customThemes = [theme, ...customThemes.filter((item) => item.id !== theme.id)];
+      catalogCustomThemesCache = [theme, ...(catalogCustomThemesCache || []).filter((item) => item.id !== theme.id)];
       const holder = document.createElement('div');
       holder.innerHTML = themeCard(theme, theme.id);
       const option = holder.firstElementChild;
@@ -1838,6 +1966,7 @@ async function render() {
   document.title = 'ScanMe — цифровые визитки';
   if (page === 'p') return renderPublic(value);
   if (page === 'catalog') return renderCatalog();
+  if (page === 'catalog-admin') return renderCatalogAdmin();
   if (page === 'edit') return renderEditor(value || 'new');
   return renderAdmin();
 }
