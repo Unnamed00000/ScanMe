@@ -380,7 +380,7 @@ export async function deleteTheme({ theme, token }) {
   const manifestFile = await githubRequest(`/contents/themes/custom-themes.json?ref=${GITHUB_BRANCH}`, githubToken, {}, true);
   const themes = manifestFile?.content ? JSON.parse(base64ToText(manifestFile.content)) : [];
   const removed = Array.isArray(themes) ? themes.filter((item) => item.id === theme.id || themeNameKey(item.name) === themeNameKey(theme.name)) : [];
-  if (!removed.length) throw new Error('Оформление уже удалено. Обновите страницу.');
+  if (!removed.length) return;
   const manifest = themes.filter((item) => !removed.some((match) => match.id === item.id));
   const manifestBlob = await githubRequest('/git/blobs', githubToken, {
     method: 'POST', body: JSON.stringify({ content: textToBase64(`${JSON.stringify(manifest, null, 2)}\n`), encoding: 'base64' }),

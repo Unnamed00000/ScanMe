@@ -40,6 +40,7 @@ let catalogDraft = {
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
 let catalogSettingsCache = null;
 let catalogCustomThemesCache = null;
+const deletedThemeMarkersKey = 'scanme-deleted-theme-markers-v1';
 
 const cryptoWallets = {
   BTC: { address: 'bc1qg8mgdzuznmy63u72wntwt8vl2fmeee7zh6r7x4', network: 'Bitcoin' },
@@ -252,6 +253,71 @@ function deterministicThemeAccent(theme) {
 
 function themeAccentValue(theme) {
   return safeHexColor(theme?.accentColor || theme?.themeAccentColor, deterministicThemeAccent(theme));
+}
+
+function normalizedThemeKey(value) {
+  return String(value || '').trim().toLocaleLowerCase();
+}
+
+function themeMarkerKeys(theme) {
+  return [
+    theme?.id,
+    theme?.theme,
+    theme?.name ? `name:${theme.name}` : '',
+    theme?.imageUrl,
+    theme?.themeImageUrl,
+    theme?.fileName ? `file:${theme.fileName}` : '',
+  ].map(normalizedThemeKey).filter(Boolean);
+}
+
+function themeCreatedTime(theme) {
+  const time = Date.parse(theme?.createdAt || '');
+  return Number.isFinite(time) ? time : 0;
+}
+
+function readDeletedThemeMarkers() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(deletedThemeMarkersKey) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((item) => Array.isArray(item?.keys) && item.keys.length) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDeletedThemeMarkers(markers) {
+  try {
+    localStorage.setItem(deletedThemeMarkersKey, JSON.stringify(markers.slice(-80)));
+  } catch {
+    // Ignore storage limits/private mode. The GitHub manifest is still the source of truth.
+  }
+}
+
+function rememberDeletedTheme(theme) {
+  const keys = themeMarkerKeys(theme);
+  if (!keys.length) return;
+  const markers = readDeletedThemeMarkers().filter((item) => !item.keys.some((key) => keys.includes(key)));
+  markers.push({ keys, deletedAt: Date.now() });
+  writeDeletedThemeMarkers(markers);
+}
+
+function forgetDeletedTheme(theme) {
+  const keys = themeMarkerKeys(theme);
+  if (!keys.length) return;
+  writeDeletedThemeMarkers(readDeletedThemeMarkers().filter((item) => !item.keys.some((key) => keys.includes(key))));
+}
+
+function isThemeMarkedDeleted(theme) {
+  const keys = themeMarkerKeys(theme);
+  if (!keys.length) return false;
+  const createdAt = themeCreatedTime(theme);
+  return readDeletedThemeMarkers().some((item) => (
+    item.keys.some((key) => keys.includes(key))
+    && (!createdAt || !item.deletedAt || createdAt <= item.deletedAt + 5000)
+  ));
+}
+
+function filterDeletedThemes(themes = []) {
+  return themes.filter((theme) => !isThemeMarkedDeleted(theme));
 }
 
 function uniqueAccentColor(preferred, existingThemes = [], seed = '') {
@@ -816,8 +882,9 @@ async function renderCatalog() {
       listThemes().catch(() => []),
     ]);
     catalogSettingsCache = normalizeCatalogSettings(savedSettings || {});
-    catalogCustomThemesCache = customThemes;
+    catalogCustomThemesCache = filterDeletedThemes(customThemes);
   }
+  catalogCustomThemesCache = filterDeletedThemes(catalogCustomThemesCache || []);
   if (!catalogDraft.language) catalogDraft.language = detectCatalogLanguage();
   const language = catalogDraft.language;
   const t = catalogText(language);
@@ -1552,6 +1619,7 @@ function showThemeManageModal(theme, { onRenamed, onDeleted }) {
       const updated = await renameTheme({ theme, name: nameInput?.value, token });
       if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
       token = '';
+      forgetDeletedTheme(updated);
       onRenamed(updated);
       close();
       toast('Название оформления изменено');
@@ -1583,6 +1651,7 @@ function showThemeManageModal(theme, { onRenamed, onDeleted }) {
       await deleteTheme({ theme, token });
       if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
       token = '';
+      rememberDeletedTheme(theme);
       onDeleted(theme);
       close();
       toast('Оформление удалено');
@@ -1701,7 +1770,8 @@ async function renderCatalogAdmin() {
   if (!currentUser) return renderLogin();
   setLoading('Загружаем настройки каталога');
   try {
-    const [savedSettings, customThemes] = await Promise.all([getCatalogSettings().catch(() => null), listThemes().catch(() => [])]);
+    const [savedSettings, rawCustomThemes] = await Promise.all([getCatalogSettings().catch(() => null), listThemes().catch(() => [])]);
+    const customThemes = filterDeletedThemes(rawCustomThemes);
     const settings = normalizeCatalogSettings(savedSettings || {});
     const allThemes = [...themeOptions, ...customThemes];
     let draftPlans = settings.plans.map((plan) => ({ ...plan }));
@@ -1853,14 +1923,16 @@ async function renderEditor(slug) {
   let socialLinks = initialSocialLinks(profile);
   let customThemes = [];
   try {
-    customThemes = await listThemes();
+    customThemes = filterDeletedThemes(await listThemes());
   } catch (error) {
     console.warn('Custom themes are unavailable', error);
   }
-  if (profile.themeImageUrl && !customThemes.some((theme) => theme.id === profile.theme)) {
+  const profileThemeRecord = { id: profile.theme, imageUrl: profile.themeImageUrl, accentColor: profile.themeAccentColor };
+  if (profile.themeImageUrl && !customThemes.some((theme) => theme.id === profile.theme) && !isThemeMarkedDeleted(profileThemeRecord)) {
     customThemes.unshift({ id: profile.theme, name: 'Загруженное оформление', imageUrl: profile.themeImageUrl, accentColor: profile.themeAccentColor });
   }
   const allThemes = [...themeOptions, ...customThemes];
+  const selectedThemeId = allThemes.some((theme) => theme.id === profile.theme) ? profile.theme : 'lime';
   const input = (name, label, options = {}) => `
     <label class="field ${options.wide ? 'field--wide' : ''} ${options.className || ''}"><span>${label}${options.required ? ' *' : ''}</span>
       <input name="${name}" value="${escapeHtml(options.value ?? profile[name] ?? '')}" ${options.required ? 'required' : ''} type="${options.type || 'text'}" placeholder="${escapeHtml(options.placeholder || '')}">
@@ -1983,7 +2055,7 @@ async function renderEditor(slug) {
             </div>
           </div>
           <div class="theme-picker">
-            ${allThemes.map((theme) => themeCard(theme, profile.theme)).join('')}
+            ${allThemes.map((theme) => themeCard(theme, selectedThemeId)).join('')}
             <button class="theme-add" id="add-theme-button" type="button"><span>${icons.plus}</span><b>Добавить оформление</b><small>Фото обрежется автоматически</small></button>
           </div>
         </section>
@@ -2159,6 +2231,7 @@ async function renderEditor(slug) {
 
   document.querySelector('#add-theme-button').addEventListener('click', () => {
     showThemeUploadModal((theme) => {
+      forgetDeletedTheme(theme);
       customThemes = [theme, ...customThemes.filter((item) => item.id !== theme.id)];
       catalogCustomThemesCache = [theme, ...(catalogCustomThemesCache || []).filter((item) => item.id !== theme.id)];
       const holder = document.createElement('div');
@@ -2183,12 +2256,16 @@ async function renderEditor(slug) {
     const shell = button.closest('.theme-card-shell');
     showThemeManageModal(theme, {
       onRenamed: (updated) => {
+        forgetDeletedTheme(updated);
         customThemes = customThemes.map((item) => item.id === theme.id ? updated : item);
+        catalogCustomThemesCache = catalogCustomThemesCache?.map((item) => item.id === theme.id ? updated : item) || catalogCustomThemesCache;
         shell.querySelector('.theme-option b').textContent = updated.name;
         button.setAttribute('aria-label', `Редактировать оформление ${updated.name}`);
       },
       onDeleted: () => {
+        rememberDeletedTheme(theme);
         customThemes = customThemes.filter((item) => item.id !== theme.id && item.name.toLocaleLowerCase() !== theme.name.toLocaleLowerCase());
+        catalogCustomThemesCache = catalogCustomThemesCache?.filter((item) => item.id !== theme.id && item.name.toLocaleLowerCase() !== theme.name.toLocaleLowerCase()) || catalogCustomThemesCache;
         const selected = shell.querySelector('input[name="theme"]')?.checked;
         shell.remove();
         if (selected) form.querySelector('input[name="theme"][value="lime"]')?.click();
