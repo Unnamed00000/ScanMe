@@ -1272,6 +1272,21 @@ function defaultDesignSettings() {
     buttonTextColor: '#0b0d0f',
     serviceTextColor: '',
     textShadowEnabled: true,
+    textShadowSize: '100',
+    baseTextShadowEnabled: true,
+    headingShadowEnabled: true,
+    secondaryShadowEnabled: true,
+    bodyShadowEnabled: true,
+    contactTextShadowEnabled: true,
+    buttonTextShadowEnabled: true,
+    serviceTextShadowEnabled: true,
+    baseTextShadowSize: '100',
+    headingShadowSize: '100',
+    secondaryShadowSize: '100',
+    bodyShadowSize: '100',
+    contactTextShadowSize: '100',
+    buttonTextShadowSize: '100',
+    serviceTextShadowSize: '100',
     textShadowColor: '#000000',
     headingShadowColor: '#000000',
     secondaryShadowColor: '#000000',
@@ -1306,6 +1321,18 @@ const emptyProfile = () => ({
   ...defaultDesignSettings(),
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
+
+const textShadowControls = [
+  { textField: 'textColor', shadowField: 'textShadowColor', enabledField: 'baseTextShadowEnabled', sizeField: 'baseTextShadowSize', prefix: 'base', alpha: 0.72 },
+  { textField: 'headingColor', shadowField: 'headingShadowColor', enabledField: 'headingShadowEnabled', sizeField: 'headingShadowSize', prefix: 'heading', alpha: 0.72 },
+  { textField: 'secondaryColor', shadowField: 'secondaryShadowColor', enabledField: 'secondaryShadowEnabled', sizeField: 'secondaryShadowSize', prefix: 'secondary', alpha: 0.72 },
+  { textField: 'bodyColor', shadowField: 'bodyShadowColor', enabledField: 'bodyShadowEnabled', sizeField: 'bodyShadowSize', prefix: 'body', alpha: 0.72 },
+  { textField: 'contactTextColor', shadowField: 'contactTextShadowColor', enabledField: 'contactTextShadowEnabled', sizeField: 'contactTextShadowSize', prefix: 'contact', alpha: 0.72 },
+  { textField: 'buttonTextColor', shadowField: 'buttonTextShadowColor', enabledField: 'buttonTextShadowEnabled', sizeField: 'buttonTextShadowSize', prefix: 'button', alpha: 0.52 },
+  { textField: 'serviceTextColor', shadowField: 'serviceTextShadowColor', enabledField: 'serviceTextShadowEnabled', sizeField: 'serviceTextShadowSize', prefix: 'service', alpha: 0.72 },
+];
+
+const textShadowControlByTextField = Object.fromEntries(textShadowControls.map((control) => [control.textField, control]));
 
 function toDateTimeLocal(value) {
   if (!value) return '';
@@ -1342,7 +1369,29 @@ function textShadowCssColor(value, fallback = '#000000', alpha = 0.72) {
 }
 
 function isTextShadowEnabled(profile) {
-  return profile?.textShadowEnabled !== false && profile?.textShadowEnabled !== 'false';
+  return isShadowToggleEnabled(profile, 'textShadowEnabled');
+}
+
+function isShadowToggleEnabled(profile, field) {
+  return profile?.[field] !== false && profile?.[field] !== 'false';
+}
+
+function shadowScaleFor(profile, control, globalScale) {
+  if (!isTextShadowEnabled(profile) || !isShadowToggleEnabled(profile, control.enabledField)) return 0;
+  return globalScale * (clampPhotoValue(profile[control.sizeField], 0, 220, 100) / 100);
+}
+
+function shadowMetricDeclarations(prefix, scale) {
+  return [
+    `--${prefix}-shadow-y-xs:${1 * scale}px`,
+    `--${prefix}-shadow-y-sm:${2 * scale}px`,
+    `--${prefix}-shadow-y-lg:${4 * scale}px`,
+    `--${prefix}-shadow-blur-xs:${10 * scale}px`,
+    `--${prefix}-shadow-blur-sm:${12 * scale}px`,
+    `--${prefix}-shadow-blur-md:${14 * scale}px`,
+    `--${prefix}-shadow-blur-lg:${16 * scale}px`,
+    `--${prefix}-shadow-blur-xl:${24 * scale}px`,
+  ];
 }
 
 function themeAccentColor(profile) {
@@ -1356,10 +1405,12 @@ function publicThemeDeclarations(profile) {
   const bodyScale = clampPhotoValue(profile.bodySize, 70, 150, 100) / 100;
   const contactScale = clampPhotoValue(profile.contactSize, 70, 150, 100) / 100;
   const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
+  const textShadowSize = clampPhotoValue(profile.textShadowSize, 0, 220, 100);
+  const textShadowScale = isTextShadowEnabled(profile) ? textShadowSize / 100 : 0;
   const baseTextColor = safeHexColor(profile.textColor, '#ffffff');
   const baseTextShadowColor = safeHexColor(profile.textShadowColor, '#000000');
-  const textShadowAlpha = isTextShadowEnabled(profile) ? 0.72 : 0;
-  const buttonTextShadowAlpha = isTextShadowEnabled(profile) ? 0.52 : 0;
+  const shadowScales = Object.fromEntries(textShadowControls.map((control) => [control.prefix, shadowScaleFor(profile, control, textShadowScale)]));
+  const shadowColorFor = (control, fallback = baseTextShadowColor) => textShadowCssColor(profile[control.shadowField], fallback, shadowScales[control.prefix] > 0 ? control.alpha : 0);
   const textPanelOpacity = clampPhotoValue(profile.textPanelOpacity, 0, 90, 32);
   const textPanelBlur = clampPhotoValue(profile.textPanelBlur, 0, 30, 6);
   const styles = [
@@ -1374,13 +1425,15 @@ function publicThemeDeclarations(profile) {
     `--contact-text-color:${safeHexColor(profile.contactTextColor, '#7e858e')}`,
     `--button-text-color:${safeHexColor(profile.buttonTextColor, '#0b0d0f')}`,
     `--service-text-color:${safeHexColor(profile.serviceTextColor, themeAccentColor(profile))}`,
-    `--text-shadow-color:${textShadowCssColor(profile.textShadowColor, '#000000', textShadowAlpha)}`,
-    `--heading-text-shadow-color:${textShadowCssColor(profile.headingShadowColor, baseTextShadowColor, textShadowAlpha)}`,
-    `--secondary-text-shadow-color:${textShadowCssColor(profile.secondaryShadowColor, baseTextShadowColor, textShadowAlpha)}`,
-    `--body-text-shadow-color:${textShadowCssColor(profile.bodyShadowColor, baseTextShadowColor, textShadowAlpha)}`,
-    `--contact-text-shadow-color:${textShadowCssColor(profile.contactTextShadowColor, baseTextShadowColor, textShadowAlpha)}`,
-    `--button-text-shadow-color:${textShadowCssColor(profile.buttonTextShadowColor, baseTextShadowColor, buttonTextShadowAlpha)}`,
-    `--service-text-shadow-color:${textShadowCssColor(profile.serviceTextShadowColor, baseTextShadowColor, textShadowAlpha)}`,
+    `--text-shadow-color:${shadowColorFor(textShadowControlByTextField.textColor, '#000000')}`,
+    `--heading-text-shadow-color:${shadowColorFor(textShadowControlByTextField.headingColor)}`,
+    `--secondary-text-shadow-color:${shadowColorFor(textShadowControlByTextField.secondaryColor)}`,
+    `--body-text-shadow-color:${shadowColorFor(textShadowControlByTextField.bodyColor)}`,
+    `--contact-text-shadow-color:${shadowColorFor(textShadowControlByTextField.contactTextColor)}`,
+    `--button-text-shadow-color:${shadowColorFor(textShadowControlByTextField.buttonTextColor)}`,
+    `--service-text-shadow-color:${shadowColorFor(textShadowControlByTextField.serviceTextColor)}`,
+    ...shadowMetricDeclarations('text', textShadowScale),
+    ...textShadowControls.flatMap((control) => shadowMetricDeclarations(control.prefix, shadowScales[control.prefix])),
     `--heading-size:clamp(${38 * headingScale}px,${7.5 * headingScale}vw,${86 * headingScale}px)`,
     `--heading-size-mobile:clamp(${34 * headingScale}px,${12 * headingScale}vw,${58 * headingScale}px)`,
     `--announcement-heading-size:clamp(${30 * headingScale}px,${5.6 * headingScale}vw,${66 * headingScale}px)`,
@@ -1974,30 +2027,30 @@ async function renderEditor(slug) {
       <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
       <small>${hint}</small>
     </label>`;
-  const shadowFieldForColor = {
-    textColor: 'textShadowColor',
-    headingColor: 'headingShadowColor',
-    secondaryColor: 'secondaryShadowColor',
-    bodyColor: 'bodyShadowColor',
-    contactTextColor: 'contactTextShadowColor',
-    buttonTextColor: 'buttonTextShadowColor',
-    serviceTextColor: 'serviceTextShadowColor',
-  };
-  const colorInput = (name, label, fallback, hint) => `
+  const designRange = (name, label, { min, max, step = 1, suffix = '%' }) => `
+    <label class="design-range"><span>${label}<b data-range-value="${name}">${escapeHtml(profile[name])}${suffix}</b></span>
+      <input name="${name}" type="range" min="${min}" max="${max}" step="${step}" value="${escapeHtml(profile[name])}" data-range-suffix="${suffix}">
+    </label>`;
+  const colorInput = (name, label, fallback, hint) => {
+    const shadow = textShadowControlByTextField[name];
+    return `
     <div class="text-color-pair">
       <label class="field color-field"><span>${label}</span>
         <input name="${name}" type="color" value="${escapeHtml(safeHexColor(profile[name], fallback))}">
         <small>${hint}</small>
       </label>
-      <label class="field color-field color-field--shadow"><span>Тень</span>
-        <input name="${shadowFieldForColor[name]}" type="color" value="${escapeHtml(safeHexColor(profile[shadowFieldForColor[name]], '#000000'))}">
-        <small>Цвет тени этого текста</small>
-      </label>
+      <div class="shadow-field-card">
+        <div class="shadow-field-card__top">
+          <label class="field color-field color-field--shadow"><span>Тень</span>
+            <input name="${shadow.shadowField}" type="color" value="${escapeHtml(safeHexColor(profile[shadow.shadowField], '#000000'))}">
+            <small>Цвет тени этого текста</small>
+          </label>
+          <label class="publish-toggle shadow-toggle shadow-toggle--inline"><input type="checkbox" name="${shadow.enabledField}" ${isShadowToggleEnabled(profile, shadow.enabledField) ? 'checked' : ''}><span></span><div><b>Тень</b><small>Вкл / выкл</small></div></label>
+        </div>
+        ${designRange(shadow.sizeField, 'Размер этой тени', { min: 0, max: 220 })}
+      </div>
     </div>`;
-  const designRange = (name, label, { min, max, step = 1, suffix = '%' }) => `
-    <label class="design-range"><span>${label}<b data-range-value="${name}">${escapeHtml(profile[name])}${suffix}</b></span>
-      <input name="${name}" type="range" min="${min}" max="${max}" step="${step}" value="${escapeHtml(profile[name])}" data-range-suffix="${suffix}">
-    </label>`;
+  };
   const socialRowsHtml = () => socialLinks.length ? socialLinks.map((item, index) => {
     const network = socialNetwork(item.network);
     return `<article class="social-link-row"><span class="social-link-icon">${escapeHtml(network.icon)}</span><div><b>${escapeHtml(network.name)}</b><small>${escapeHtml(item.value)}</small></div><button class="icon-button social-edit" type="button" data-index="${index}" aria-label="Редактировать ${escapeHtml(network.name)}">${icons.edit}</button><button class="icon-button social-delete" type="button" data-index="${index}" aria-label="Удалить ${escapeHtml(network.name)}">${icons.trash}</button></article>`;
@@ -2076,6 +2129,9 @@ async function renderEditor(slug) {
             <div class="color-settings">
               <div class="font-settings__heading"><b>Цвет текста</b><small>Можно выбрать общий цвет для всей карточки или настроить каждый текстовый блок отдельно.</small></div>
               <label class="publish-toggle shadow-toggle"><input type="checkbox" name="textShadowEnabled" ${isTextShadowEnabled(profile) ? 'checked' : ''}><span></span><div><b>Тени текста</b><small>Выключите, чтобы полностью убрать тени со всех текстов на визитке.</small></div></label>
+              <div class="shadow-size-control">
+                ${designRange('textShadowSize', 'Размер тени текста', { min: 0, max: 220 })}
+              </div>
               <div class="color-apply-all">
                 <label class="field color-field"><span>Один цвет для всего текста</span><input id="apply-all-text-color" type="color" value="${escapeHtml(safeHexColor(profile.textColor, '#ffffff'))}"><small>При выборе этот цвет сразу поставится во все текстовые блоки ниже.</small></label>
                 <label class="field color-field color-field--shadow"><span>Одна тень для всего текста</span><input id="apply-all-text-shadow" type="color" value="${escapeHtml(safeHexColor(profile.textShadowColor, '#000000'))}"><small>При выборе эта тень поставится во все текстовые блоки ниже.</small></label>
@@ -2151,7 +2207,7 @@ async function renderEditor(slug) {
   const serviceTextColorField = form.elements.serviceTextColor;
   let serviceTextColorTouched = Boolean(profile.serviceTextColor);
   const textColorFields = ['textColor', 'headingColor', 'secondaryColor', 'bodyColor', 'contactTextColor', 'buttonTextColor', 'serviceTextColor'];
-  const textShadowFields = ['textShadowColor', 'headingShadowColor', 'secondaryShadowColor', 'bodyShadowColor', 'contactTextShadowColor', 'buttonTextShadowColor', 'serviceTextShadowColor'];
+  const textShadowFields = textShadowControls.map(({ shadowField }) => shadowField);
   applyAllTextColor?.addEventListener('input', () => {
     textColorFields.forEach((name) => {
       const field = form.elements[name];
@@ -2223,6 +2279,9 @@ async function renderEditor(slug) {
   const previewDraft = () => {
     const draft = { ...profile, ...Object.fromEntries(new FormData(form)) };
     draft.textShadowEnabled = form.elements.textShadowEnabled?.checked ?? true;
+    textShadowControls.forEach(({ enabledField }) => {
+      draft[enabledField] = form.elements[enabledField]?.checked ?? true;
+    });
     const selectedTheme = form.querySelector('[name="theme"]:checked');
     draft.theme = selectedTheme?.value || 'lime';
     draft.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
@@ -2384,6 +2443,9 @@ async function renderEditor(slug) {
       const formData = new FormData(event.currentTarget);
       const payload = { ...profile, ...Object.fromEntries(formData), slug: slugify(formData.get('slug')), published: formData.has('published') };
       payload.textShadowEnabled = formData.has('textShadowEnabled');
+      textShadowControls.forEach(({ enabledField }) => {
+        payload[enabledField] = formData.has(enabledField);
+      });
       payload.socialLinks = socialLinks.map((item) => ({ network: item.network, value: item.value }));
       const selectedTheme = form.querySelector('[name="theme"]:checked');
       payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
