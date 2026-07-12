@@ -402,10 +402,14 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .public-card { font-family: var(--font-body, 'Manrope'), sans-serif; }
 .public-card__top { display: flex; align-items: center; justify-content: space-between; }
 .public-card__actions { display: flex; align-items: center; gap: 8px; }
-.mini-logo { display: inline-flex; align-items: center; gap: 8px; color: var(--service-text-color, var(--accent)); font-family: var(--font-secondary, 'Unbounded'); font-size: 10px; letter-spacing: .08em; }
-.mini-logo svg { width: 18px; height: 18px; }
-.mini-logo { min-height: 42px; margin: -8px 0 -8px -8px; padding: 8px; border-radius: 13px; transition: background .18s, transform .18s; }
-.mini-logo:hover { background: #ffffff0c; transform: translateY(-1px); }
+.mini-logo { display: inline-flex; max-width: min(280px, calc(100vw - 132px)); min-width: 0; min-height: 42px; align-items: center; gap: 8px; margin: -8px 0 -8px -8px; padding: 6px 10px 6px 6px; border: 1px solid rgba(255,255,255,.42); border-radius: 15px; color: #0b0d11 !important; background: rgba(250,250,247,.92); box-shadow: 0 12px 34px #0000002e, inset 0 1px 0 #ffffff; backdrop-filter: blur(10px); transition: transform .18s, box-shadow .18s; }
+.mini-logo svg { box-sizing: border-box; width: 30px; height: 30px; flex: 0 0 auto; padding: 7px; border-radius: 9px; color: #0b0d11 !important; background: var(--lime); stroke: currentColor !important; }
+.mini-logo__word { display: inline-flex; align-items: baseline; color: #0b0d11 !important; font-family: 'Unbounded', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: -.055em; line-height: 1; }
+.mini-logo__word b { color: #0b0d11 !important; font: inherit; }
+.mini-logo__word em { color: #8eae2d !important; font: inherit; font-style: normal; }
+.mini-logo__divider { color: #71766d; font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 900; line-height: 1; }
+.mini-logo small { min-width: 0; overflow: hidden; color: #62675f; font-family: 'Manrope', sans-serif; font-size: 8px; font-weight: 900; letter-spacing: .12em; line-height: 1; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.mini-logo:hover { transform: translateY(-1px); box-shadow: 0 15px 38px #00000038, inset 0 1px 0 #ffffff; }
 .round-button { border-color: #ffffff24; border-radius: 50%; color: white; background: #ffffff0a; backdrop-filter: blur(10px); }
 .identity { width: min(760px, 100%); margin: auto; padding: 48px 0 34px; text-align: center; }
 .portrait-wrap { position: relative; width: max-content; margin: 0 auto 27px; }

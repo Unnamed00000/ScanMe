@@ -255,6 +255,10 @@ function themeAccentValue(theme) {
   return safeHexColor(theme?.accentColor || theme?.themeAccentColor, deterministicThemeAccent(theme));
 }
 
+function scanmeMiniLogo(extraLabel = '') {
+  return `${icons.qr}<span class="mini-logo__word"><b>SCAN</b><em>ME</em></span>${extraLabel ? `<span class="mini-logo__divider">·</span><small>${escapeHtml(extraLabel)}</small>` : ''}`;
+}
+
 function normalizedThemeKey(value) {
   return String(value || '').trim().toLocaleLowerCase();
 }
@@ -952,7 +956,7 @@ async function renderCatalog() {
             <div class="catalog-preview-heading"><p class="eyebrow">${t.livePreview}</p><button class="catalog-preview-close" id="catalog-preview-close" type="button" aria-label="Close">×</button></div>
             <div class="public-card catalog-live-card theme-${catalogDraft.theme}" id="catalog-live-card">
               <div class="card-noise"></div><div class="orb orb--one"></div>
-              <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="${t.share}">${icons.share}</button></header>
+              <header class="public-card__top"><span class="mini-logo">${scanmeMiniLogo()}</span><button class="round-button" type="button" aria-label="${t.share}">${icons.share}</button></header>
               <section class="identity">
                 <div class="portrait-wrap"><div class="portrait" id="catalog-preview-initials">ИФ</div><i class="portrait-status"></i></div>
                 <div class="identity-text-panel"><p class="identity__label" id="catalog-preview-label">${cardCopy.digitalCard}</p><h1 id="catalog-preview-name">${escapeHtml(catalogDraft.fullName)}</h1><p class="identity__role" id="catalog-preview-role">${escapeHtml(catalogDraft.role || t.demoRole)}</p></div>
@@ -2173,7 +2177,7 @@ async function renderEditor(slug) {
       cardPreview.classList.add('editor-phone-preview--announcement');
       cardPreview.innerHTML = `
         <div class="card-noise"></div>
-        <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><span class="round-button">${icons.share}</span></header>
+        <header class="public-card__top"><span class="mini-logo">${scanmeMiniLogo()}</span><span class="round-button">${icons.share}</span></header>
         <section class="announcement-content ${draft.announcementImageUrl ? '' : 'announcement-content--no-image'}">
           ${draft.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(draft.announcementImageUrl)}')"></div>` : ''}
           <div class="announcement-copy">
@@ -2199,7 +2203,7 @@ async function renderEditor(slug) {
     ].filter(Boolean).slice(0, 6);
     cardPreview.innerHTML = `
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-      <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><span class="round-button">${icons.share}</span></header>
+      <header class="public-card__top"><span class="mini-logo">${scanmeMiniLogo()}</span><span class="round-button">${icons.share}</span></header>
       <section class="identity">
         <div class="portrait-wrap"><div class="portrait ${draft.photoUrl ? 'has-photo' : ''}">${draft.photoUrl ? `<img src="${escapeHtml(draft.photoUrl)}" alt="" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${zoom})">` : escapeHtml(getInitials(draft.fullName || 'Имя Фамилия'))}</div><span class="portrait-status"></span></div>
         <div class="identity-text-panel"><p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(draft.fullName || 'Имя Фамилия')}</h1>
@@ -2476,7 +2480,7 @@ async function renderAnnouncement(profile) {
   app.innerHTML = `
     <main class="public-card announcement-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
       <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-      <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${icons.qr} SCANME · ${copy.announcement}</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></div></header>
+      <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${scanmeMiniLogo(copy.announcement)}</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Share">${icons.share}</button></div></header>
       <section class="announcement-content ${profile.announcementImageUrl ? '' : 'announcement-content--no-image'}">
         ${profile.announcementImageUrl ? `<div class="announcement-image" style="background-image:url('${escapeHtml(profile.announcementImageUrl)}')"></div>` : ''}
         <div class="announcement-copy">
@@ -2523,7 +2527,7 @@ async function renderPublic(slug) {
     app.innerHTML = `
       <main class="public-card theme-${escapeHtml(profile.theme || 'lime')} ${profile.themeImageUrl ? 'theme-custom' : ''}"${publicThemeStyle(profile)}>
         <div class="card-noise"></div><div class="orb orb--one"></div><div class="orb orb--two"></div>
-        <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${icons.qr} SCANME</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
+        <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${scanmeMiniLogo()}</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
         <section class="identity">
           <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}">${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.fullName)}" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${photoZoom})">` : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
           <div class="identity-text-panel"><p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1><p class="identity__role">${escapeHtml([profile.title, profile.company].filter(Boolean).join(' · '))}</p></div>
