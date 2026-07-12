@@ -1271,6 +1271,7 @@ function defaultDesignSettings() {
     contactTextColor: '#7e858e',
     buttonTextColor: '#0b0d0f',
     serviceTextColor: '',
+    textShadowEnabled: true,
     textShadowColor: '#000000',
     headingShadowColor: '#000000',
     secondaryShadowColor: '#000000',
@@ -1340,6 +1341,10 @@ function textShadowCssColor(value, fallback = '#000000', alpha = 0.72) {
   return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
 }
 
+function isTextShadowEnabled(profile) {
+  return profile?.textShadowEnabled !== false && profile?.textShadowEnabled !== 'false';
+}
+
 function themeAccentColor(profile) {
   if (profile?.themeImageUrl || profile?.imageUrl) return themeAccentValue(profile);
   return qrPalette(profile?.theme || 'lime').accent || '#c9ff38';
@@ -1353,6 +1358,8 @@ function publicThemeDeclarations(profile) {
   const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
   const baseTextColor = safeHexColor(profile.textColor, '#ffffff');
   const baseTextShadowColor = safeHexColor(profile.textShadowColor, '#000000');
+  const textShadowAlpha = isTextShadowEnabled(profile) ? 0.72 : 0;
+  const buttonTextShadowAlpha = isTextShadowEnabled(profile) ? 0.52 : 0;
   const textPanelOpacity = clampPhotoValue(profile.textPanelOpacity, 0, 90, 32);
   const textPanelBlur = clampPhotoValue(profile.textPanelBlur, 0, 30, 6);
   const styles = [
@@ -1367,13 +1374,13 @@ function publicThemeDeclarations(profile) {
     `--contact-text-color:${safeHexColor(profile.contactTextColor, '#7e858e')}`,
     `--button-text-color:${safeHexColor(profile.buttonTextColor, '#0b0d0f')}`,
     `--service-text-color:${safeHexColor(profile.serviceTextColor, themeAccentColor(profile))}`,
-    `--text-shadow-color:${textShadowCssColor(profile.textShadowColor, '#000000')}`,
-    `--heading-text-shadow-color:${textShadowCssColor(profile.headingShadowColor, baseTextShadowColor)}`,
-    `--secondary-text-shadow-color:${textShadowCssColor(profile.secondaryShadowColor, baseTextShadowColor)}`,
-    `--body-text-shadow-color:${textShadowCssColor(profile.bodyShadowColor, baseTextShadowColor)}`,
-    `--contact-text-shadow-color:${textShadowCssColor(profile.contactTextShadowColor, baseTextShadowColor)}`,
-    `--button-text-shadow-color:${textShadowCssColor(profile.buttonTextShadowColor, baseTextShadowColor, 0.52)}`,
-    `--service-text-shadow-color:${textShadowCssColor(profile.serviceTextShadowColor, baseTextShadowColor)}`,
+    `--text-shadow-color:${textShadowCssColor(profile.textShadowColor, '#000000', textShadowAlpha)}`,
+    `--heading-text-shadow-color:${textShadowCssColor(profile.headingShadowColor, baseTextShadowColor, textShadowAlpha)}`,
+    `--secondary-text-shadow-color:${textShadowCssColor(profile.secondaryShadowColor, baseTextShadowColor, textShadowAlpha)}`,
+    `--body-text-shadow-color:${textShadowCssColor(profile.bodyShadowColor, baseTextShadowColor, textShadowAlpha)}`,
+    `--contact-text-shadow-color:${textShadowCssColor(profile.contactTextShadowColor, baseTextShadowColor, textShadowAlpha)}`,
+    `--button-text-shadow-color:${textShadowCssColor(profile.buttonTextShadowColor, baseTextShadowColor, buttonTextShadowAlpha)}`,
+    `--service-text-shadow-color:${textShadowCssColor(profile.serviceTextShadowColor, baseTextShadowColor, textShadowAlpha)}`,
     `--heading-size:clamp(${38 * headingScale}px,${7.5 * headingScale}vw,${86 * headingScale}px)`,
     `--heading-size-mobile:clamp(${34 * headingScale}px,${12 * headingScale}vw,${58 * headingScale}px)`,
     `--announcement-heading-size:clamp(${30 * headingScale}px,${5.6 * headingScale}vw,${66 * headingScale}px)`,
@@ -2068,6 +2075,7 @@ async function renderEditor(slug) {
             </div>
             <div class="color-settings">
               <div class="font-settings__heading"><b>Цвет текста</b><small>Можно выбрать общий цвет для всей карточки или настроить каждый текстовый блок отдельно.</small></div>
+              <label class="publish-toggle shadow-toggle"><input type="checkbox" name="textShadowEnabled" ${isTextShadowEnabled(profile) ? 'checked' : ''}><span></span><div><b>Тени текста</b><small>Выключите, чтобы полностью убрать тени со всех текстов на визитке.</small></div></label>
               <div class="color-apply-all">
                 <label class="field color-field"><span>Один цвет для всего текста</span><input id="apply-all-text-color" type="color" value="${escapeHtml(safeHexColor(profile.textColor, '#ffffff'))}"><small>При выборе этот цвет сразу поставится во все текстовые блоки ниже.</small></label>
                 <label class="field color-field color-field--shadow"><span>Одна тень для всего текста</span><input id="apply-all-text-shadow" type="color" value="${escapeHtml(safeHexColor(profile.textShadowColor, '#000000'))}"><small>При выборе эта тень поставится во все текстовые блоки ниже.</small></label>
@@ -2169,6 +2177,11 @@ async function renderEditor(slug) {
   const setDesignField = (name, value) => {
     const field = form.elements[name];
     if (!field) return;
+    if (field.type === 'checkbox') {
+      field.checked = value === true || value === 'true' || value === 'on';
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
     field.value = value;
     field.dispatchEvent(new Event(field.type === 'range' ? 'input' : 'change', { bubbles: true }));
   };
@@ -2209,6 +2222,7 @@ async function renderEditor(slug) {
   const getContentType = () => form.querySelector('[name="contentType"]:checked')?.value || 'card';
   const previewDraft = () => {
     const draft = { ...profile, ...Object.fromEntries(new FormData(form)) };
+    draft.textShadowEnabled = form.elements.textShadowEnabled?.checked ?? true;
     const selectedTheme = form.querySelector('[name="theme"]:checked');
     draft.theme = selectedTheme?.value || 'lime';
     draft.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
@@ -2369,6 +2383,7 @@ async function renderEditor(slug) {
     try {
       const formData = new FormData(event.currentTarget);
       const payload = { ...profile, ...Object.fromEntries(formData), slug: slugify(formData.get('slug')), published: formData.has('published') };
+      payload.textShadowEnabled = formData.has('textShadowEnabled');
       payload.socialLinks = socialLinks.map((item) => ({ network: item.network, value: item.value }));
       const selectedTheme = form.querySelector('[name="theme"]:checked');
       payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';

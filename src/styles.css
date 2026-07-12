@@ -185,6 +185,8 @@ input:focus, textarea:focus, select:focus { border-color: #94b52d; box-shadow: 0
 .font-settings__heading b { font-size: 13px; }
 .font-settings__heading small { color: var(--muted); font-size: 10px; }
 .color-settings { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.shadow-toggle { margin: 0 0 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.shadow-toggle small { max-width: 520px; }
 .color-apply-all { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .color-apply-all .field { margin-bottom: 0; }
 .text-color-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 19px; }
