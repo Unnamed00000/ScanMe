@@ -1,5 +1,13 @@
 [
   {
+    "id": "custom-altrenngoering-2-mri52y5r",
+    "name": "Altrenngoering 2",
+    "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-altrenngoering-2-mri52y5r.webp",
+    "fileName": "custom-altrenngoering-2-mri52y5r.webp",
+    "accentColor": "#84cc16",
+    "createdAt": "2026-07-12T18:41:00.244Z"
+  },
+  {
     "id": "custom-medical-mr5g5res",
     "name": "Medical",
     "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-medical-mr5g5res.webp",
