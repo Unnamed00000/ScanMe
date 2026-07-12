@@ -1,5 +1,13 @@
 [
   {
+    "id": "custom-maler-mri54apa",
+    "name": "maler",
+    "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-maler-mri54apa.webp",
+    "fileName": "custom-maler-mri54apa.webp",
+    "accentColor": "#7c5cff",
+    "createdAt": "2026-07-12T18:42:03.083Z"
+  },
+  {
     "id": "custom-altrenngoering-2-mri52y5r",
     "name": "Altrenngoering 2",
     "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-altrenngoering-2-mri52y5r.webp",
