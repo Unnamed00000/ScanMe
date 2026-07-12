@@ -540,6 +540,22 @@ const fontStacks = {
   caveat: "'Caveat', cursive",
 };
 
+fontOptions.push(
+  { id: 'roboto', name: 'Roboto — чистый' },
+  { id: 'rubik', name: 'Rubik — мягкий' },
+  { id: 'raleway', name: 'Raleway — элегантный' },
+  { id: 'lora', name: 'Lora — журнальный' },
+  { id: 'pacifico', name: 'Pacifico — декоративный' },
+);
+
+Object.assign(fontStacks, {
+  roboto: "'Roboto', sans-serif",
+  rubik: "'Rubik', sans-serif",
+  raleway: "'Raleway', sans-serif",
+  lora: "'Lora', serif",
+  pacifico: "'Pacifico', cursive",
+});
+
 const publicTranslations = {
   ru: { digitalCard: 'Цифровая визитка', announcement: 'ОБЪЯВЛЕНИЕ', call: 'Позвонить', email: 'Email', website: 'Сайт', saveContact: 'Сохранить контакт', updated: 'Обновлено владельцем', contact: 'Контакт', until: 'До', contactAction: 'Связаться', expiredEyebrow: 'Требуется продление', expiredTitle: 'Срок действия визитки истёк', expiredText: 'Оплаченный период публикации завершён. Продлите размещение, чтобы визитка снова открывалась по ссылке и QR-коду.', expiredSaved: 'Все данные сохранены и появятся сразу после продления.', expiredAction: 'Запросить продление', expiredPlans: 'Посмотреть тарифы', expiredSubject: 'Продление визитки' },
   en: { digitalCard: 'Digital business card', announcement: 'ADVERTISEMENT', call: 'Call', email: 'Email', website: 'Website', saveContact: 'Save contact', updated: 'Updated by the owner', contact: 'Contact', until: 'Until', contactAction: 'Contact', expiredEyebrow: 'Renewal required', expiredTitle: 'This digital card has expired', expiredText: 'The paid publication period has ended. Renew the service to make the card available again through its link and QR code.', expiredSaved: 'All card data is safely stored and will return immediately after renewal.', expiredAction: 'Request renewal', expiredPlans: 'View plans', expiredSubject: 'Digital card renewal' },
@@ -750,10 +766,8 @@ async function renderCatalog() {
               <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><button class="round-button" type="button" aria-label="${t.share}">${icons.share}</button></header>
               <section class="identity">
                 <div class="portrait-wrap"><div class="portrait" id="catalog-preview-initials">ИФ</div><i class="portrait-status"></i></div>
-                <p class="identity__label" id="catalog-preview-label">${cardCopy.digitalCard}</p>
-                <h1 id="catalog-preview-name">${escapeHtml(catalogDraft.fullName)}</h1>
-                <p class="identity__role" id="catalog-preview-role">${escapeHtml(catalogDraft.role || t.demoRole)}</p>
-                <p class="identity__bio" id="catalog-preview-bio">${catalogText(catalogDraft.cardLanguage).demoBio}</p>
+                <div class="identity-text-panel"><p class="identity__label" id="catalog-preview-label">${cardCopy.digitalCard}</p><h1 id="catalog-preview-name">${escapeHtml(catalogDraft.fullName)}</h1><p class="identity__role" id="catalog-preview-role">${escapeHtml(catalogDraft.role || t.demoRole)}</p></div>
+                <div class="identity-info-panel"><p class="identity__bio" id="catalog-preview-bio">${catalogText(catalogDraft.cardLanguage).demoBio}</p></div>
               </section>
               <section class="contact-dock"><div class="contact-links" id="catalog-preview-contacts"><span><i>${icons.phone}</i><small>${cardCopy.call}</small></span><span><i>${icons.mail}</i><small>${cardCopy.email}</small></span><span><i>${icons.globe}</i><small>${cardCopy.website}</small></span></div><button class="save-contact" type="button">${icons.plus}<span id="catalog-preview-save">${cardCopy.saveContact}</span></button></section>
             </div>
@@ -1040,18 +1054,44 @@ async function renderCatalog() {
   });
 }
 
+function defaultDesignSettings() {
+  return {
+    theme: 'lime',
+    headingFont: 'unbounded',
+    secondaryFont: 'manrope',
+    bodyFont: 'manrope',
+    contactFont: 'manrope',
+    textColor: '#ffffff',
+    headingColor: '#ffffff',
+    secondaryColor: '#c1c5cb',
+    bodyColor: '#8c929b',
+    contactTextColor: '#7e858e',
+    buttonTextColor: '#0b0d0f',
+    serviceTextColor: '',
+    headingSize: '100',
+    secondarySize: '100',
+    bodySize: '100',
+    contactSize: '100',
+    buttonSize: '100',
+    textPanelOpacity: '32',
+    textPanelBlur: '6',
+    topPanelOpacity: '18',
+    topPanelBlur: '6',
+    bioPanelOpacity: '24',
+    bioPanelBlur: '8',
+    contactPanelOpacity: '32',
+    contactPanelBlur: '6',
+  };
+}
+
 const emptyProfile = () => ({
   contentType: 'card',
   language: 'ru',
   fullName: '', slug: '', title: '', company: '', bio: '', photoUrl: '', photoZoom: '1', photoX: '50', photoY: '50', phone: '',
-  email: '', website: '', telegram: '', whatsapp: '', address: '', socialLinks: [], theme: 'lime', published: true,
+  email: '', website: '', telegram: '', whatsapp: '', address: '', socialLinks: [], published: true,
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
-  headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
-  textColor: '#ffffff', headingColor: '#ffffff', secondaryColor: '#c1c5cb', bodyColor: '#8c929b',
-  contactTextColor: '#7e858e', buttonTextColor: '#0b0d0f', serviceTextColor: '',
-  headingSize: '100', secondarySize: '100', bodySize: '100', contactSize: '100', buttonSize: '100',
-  textPanelOpacity: '32', textPanelBlur: '6',
+  ...defaultDesignSettings(),
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
 });
 
@@ -1094,6 +1134,8 @@ function publicThemeDeclarations(profile) {
   const contactScale = clampPhotoValue(profile.contactSize, 70, 150, 100) / 100;
   const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
   const baseTextColor = safeHexColor(profile.textColor, '#ffffff');
+  const textPanelOpacity = clampPhotoValue(profile.textPanelOpacity, 0, 90, 32);
+  const textPanelBlur = clampPhotoValue(profile.textPanelBlur, 0, 30, 6);
   const styles = [
     `--font-heading:${fontStacks[profile.headingFont] || fontStacks.unbounded}`,
     `--font-secondary:${fontStacks[profile.secondaryFont] || fontStacks.manrope}`,
@@ -1123,8 +1165,14 @@ function publicThemeDeclarations(profile) {
     `--button-width:${370 * buttonScale}px`,
     `--button-font-size:${14 * buttonScale}px`,
     `--button-icon-size:${19 * buttonScale}px`,
-    `--text-panel-opacity:${clampPhotoValue(profile.textPanelOpacity, 0, 90, 32) / 100}`,
-    `--text-panel-blur:${clampPhotoValue(profile.textPanelBlur, 0, 30, 6)}px`,
+    `--text-panel-opacity:${textPanelOpacity / 100}`,
+    `--text-panel-blur:${textPanelBlur}px`,
+    `--top-panel-opacity:${clampPhotoValue(profile.topPanelOpacity, 0, 90, textPanelOpacity) / 100}`,
+    `--top-panel-blur:${clampPhotoValue(profile.topPanelBlur, 0, 30, textPanelBlur)}px`,
+    `--bio-panel-opacity:${clampPhotoValue(profile.bioPanelOpacity, 0, 90, textPanelOpacity) / 100}`,
+    `--bio-panel-blur:${clampPhotoValue(profile.bioPanelBlur, 0, 30, textPanelBlur)}px`,
+    `--contact-panel-opacity:${clampPhotoValue(profile.contactPanelOpacity, 0, 90, textPanelOpacity) / 100}`,
+    `--contact-panel-blur:${clampPhotoValue(profile.contactPanelBlur, 0, 30, textPanelBlur)}px`,
   ];
   if (profile.themeImageUrl) styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
   return styles;
@@ -1741,9 +1789,14 @@ async function renderEditor(slug) {
               ${designRange('bodySize', 'Размер описания', { min: 70, max: 150 })}
               ${designRange('contactSize', 'Размер контактов', { min: 70, max: 150 })}
               ${designRange('buttonSize', 'Размер кнопок', { min: 70, max: 150 })}
-              ${designRange('textPanelOpacity', 'Видимость фона за текстом', { min: 0, max: 90 })}
-              ${designRange('textPanelBlur', 'Размытие фона за текстом', { min: 0, max: 30, suffix: ' px' })}
+              ${designRange('topPanelOpacity', 'Фон верхнего текста', { min: 0, max: 90 })}
+              ${designRange('topPanelBlur', 'Размытие верхнего текста', { min: 0, max: 30, suffix: ' px' })}
+              ${designRange('bioPanelOpacity', 'Фон блока «О себе»', { min: 0, max: 90 })}
+              ${designRange('bioPanelBlur', 'Размытие блока «О себе»', { min: 0, max: 30, suffix: ' px' })}
+              ${designRange('contactPanelOpacity', 'Фон контактов и кнопки', { min: 0, max: 90 })}
+              ${designRange('contactPanelBlur', 'Размытие контактов и кнопки', { min: 0, max: 30, suffix: ' px' })}
             </div>
+            <button class="button button--ghost design-reset-button" id="reset-design-button" type="button">${icons.refresh || icons.back} Сбросить оформление</button>
             <div class="editor-preview-stage">
               <div class="editor-preview-stage__heading"><b>Предпросмотр всей страницы</b><small>Так визитка будет выглядеть на телефоне</small></div>
               <main class="public-card editor-phone-preview" id="editor-card-preview"></main>
@@ -1808,6 +1861,34 @@ async function renderEditor(slug) {
     range.addEventListener('input', sync);
     sync();
   });
+  const setDesignField = (name, value) => {
+    const field = form.elements[name];
+    if (!field) return;
+    field.value = value;
+    field.dispatchEvent(new Event(field.type === 'range' ? 'input' : 'change', { bubbles: true }));
+  };
+  form.querySelector('#reset-design-button')?.addEventListener('click', () => {
+    const defaults = defaultDesignSettings();
+    Object.entries(defaults).forEach(([name, value]) => {
+      if (name === 'theme') {
+        const themeField = form.querySelector(`input[name="theme"][value="${value}"]`);
+        if (themeField) {
+          themeField.checked = true;
+          themeField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return;
+      }
+      if (name === 'serviceTextColor') {
+        setDesignField(name, themeAccentColor(defaults));
+        return;
+      }
+      setDesignField(name, value);
+    });
+    if (applyAllTextColor) applyAllTextColor.value = defaults.textColor;
+    serviceTextColorTouched = false;
+    syncCardPreview();
+    toast('Оформление сброшено');
+  });
   const nameField = document.querySelector('[name="fullName"]');
   const announcementTitleField = document.querySelector('[name="announcementTitle"]');
   const announcementDescriptionField = document.querySelector('[name="announcementDescription"]');
@@ -1868,10 +1949,9 @@ async function renderEditor(slug) {
       <header class="public-card__top"><span class="mini-logo">${icons.qr} SCANME</span><span class="round-button">${icons.share}</span></header>
       <section class="identity">
         <div class="portrait-wrap"><div class="portrait ${draft.photoUrl ? 'has-photo' : ''}">${draft.photoUrl ? `<img src="${escapeHtml(draft.photoUrl)}" alt="" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${zoom})">` : escapeHtml(getInitials(draft.fullName || 'Имя Фамилия'))}</div><span class="portrait-status"></span></div>
-        <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(draft.fullName || 'Имя Фамилия')}</h1>
-        ${role ? `<p class="identity__role">${escapeHtml(role)}</p>` : ''}
-        ${draft.bio ? `<p class="identity__bio">${escapeHtml(draft.bio)}</p>` : ''}
-        ${draft.address ? `<p class="identity__location">${icons.map}${escapeHtml(draft.address)}</p>` : ''}
+        <div class="identity-text-panel"><p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(draft.fullName || 'Имя Фамилия')}</h1>
+        ${role ? `<p class="identity__role">${escapeHtml(role)}</p>` : ''}</div>
+        ${draft.bio || draft.address ? `<div class="identity-info-panel">${draft.bio ? `<p class="identity__bio">${escapeHtml(draft.bio)}</p>` : ''}${draft.address ? `<p class="identity__location">${icons.map}${escapeHtml(draft.address)}</p>` : ''}</div>` : ''}
       </section>
       <section class="contact-dock"><div class="contact-links">${contactItems.length ? contactItems.map((item) => `<span><i>${item.icon}</i><small>${escapeHtml(item.label)}</small></span>`).join('') : `<span><i>${icons.phone}</i><small>${copy.call}</small></span><span><i>${icons.mail}</i><small>${copy.email}</small></span>`}</div><button class="save-contact" type="button">${icons.plus}<span>${copy.saveContact}</span></button></section>`;
   };
@@ -2187,10 +2267,8 @@ async function renderPublic(slug) {
         <header class="public-card__top"><a class="mini-logo" href="#/catalog" aria-label="Открыть каталог SCANME">${icons.qr} SCANME</a><div class="public-card__actions"><button class="round-button install-pwa-button" aria-label="${installLabels[profile.language] || installLabels.ru}" title="${installLabels[profile.language] || installLabels.ru}">${icons.download}</button><button class="round-button" id="share-profile" aria-label="Поделиться">${icons.share}</button></div></header>
         <section class="identity">
           <div class="portrait-wrap"><div class="portrait ${profile.photoUrl ? 'has-photo' : ''}">${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="${escapeHtml(profile.fullName)}" style="object-position:${photoX}% ${photoY}%;transform-origin:${photoX}% ${photoY}%;transform:scale(${photoZoom})">` : escapeHtml(getInitials(profile.fullName))}</div><i class="portrait-status"></i></div>
-          <p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1>
-          <p class="identity__role">${escapeHtml([profile.title, profile.company].filter(Boolean).join(' · '))}</p>
-          ${profile.bio ? `<p class="identity__bio">${escapeHtml(profile.bio)}</p>` : ''}
-          ${profile.address ? `<p class="identity__location">${icons.map}${escapeHtml(profile.address)}</p>` : ''}
+          <div class="identity-text-panel"><p class="identity__label">${copy.digitalCard}</p><h1>${escapeHtml(profile.fullName)}</h1><p class="identity__role">${escapeHtml([profile.title, profile.company].filter(Boolean).join(' · '))}</p></div>
+          ${profile.bio || profile.address ? `<div class="identity-info-panel">${profile.bio ? `<p class="identity__bio">${escapeHtml(profile.bio)}</p>` : ''}${profile.address ? `<p class="identity__location">${icons.map}${escapeHtml(profile.address)}</p>` : ''}</div>` : ''}
         </section>
         <section class="contact-dock">
           <div class="contact-links">${contacts.map(({ id, href, icon, label }) => `<a href="${escapeHtml(href)}" ${id !== 'phone' && id !== 'email' ? 'target="_blank" rel="noopener"' : ''}><span>${icon}</span><small>${escapeHtml(label)}</small></a>`).join('')}</div>
