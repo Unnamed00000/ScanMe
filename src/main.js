@@ -34,6 +34,7 @@ let currentUser = null;
 let deferredInstallPrompt = null;
 let catalogDraft = {
   language: '', cardLanguage: 'en', currency: 'DKK', paymentCrypto: 'BTC', plan: 'monthly', theme: 'lime',
+  themeAccentColor: '',
   fullName: 'Имя Фамилия', role: '', phone: '', email: '', socialLinks: [], headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
 };
 let catalogRateState = { rates: { DKK: 1 }, updatedAt: '', loading: false, failed: false };
@@ -140,6 +141,12 @@ const qrThemePalettes = {
   romantic: { dark: '#35101a', light: '#fff0f3', accent: '#ff728b' },
 };
 
+const customAccentPalette = [
+  '#00d4ff', '#ff4f81', '#ffb000', '#7c5cff', '#00e39f', '#ff6b35', '#f7d046', '#6ee7ff',
+  '#b8ff4d', '#ff66cc', '#75a7ff', '#38f5c2', '#f97316', '#84cc16', '#c084fc', '#22d3ee',
+  '#fb7185', '#facc15', '#2dd4bf', '#a78bfa', '#f472b6', '#4ade80', '#60a5fa', '#f59e0b',
+];
+
 const catalogThemeImages = {
   car: '/ScanMe/themes/midnight-car.png', landrover: '/ScanMe/themes/land-rover-discovery.png', tayotayaris: '/ScanMe/themes/TayotaYaris-Aslan.png',
   lion: '/ScanMe/themes/golden-lion.png', wolf: '/ScanMe/themes/silver-wolf.png', eagle: '/ScanMe/themes/golden-eagle.png',
@@ -154,6 +161,117 @@ const englishCatalogThemeNames = {
 
 function qrPalette(theme) {
   return qrThemePalettes[theme] || qrThemePalettes.lime;
+}
+
+function profileQrPalette(profile) {
+  const base = qrPalette(profile?.theme);
+  if (!profile?.themeImageUrl) return base;
+  const accent = themeAccentColor(profile);
+  return {
+    dark: base.dark || '#071923',
+    light: base.light || '#ebf9ff',
+    accent,
+  };
+}
+
+function hexToRgb(color) {
+  const match = String(color || '').trim().match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return null;
+  const number = Number.parseInt(match[1], 16);
+  return { r: (number >> 16) & 255, g: (number >> 8) & 255, b: number & 255 };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function rgbToHsl({ r, g, b }) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      default: h = ((r - g) / d + 4) / 6;
+    }
+  }
+  return { h, s, l };
+}
+
+function hslToRgb({ h, s, l }) {
+  const hueToRgb = (p, q, t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  if (!s) return { r: l * 255, g: l * 255, b: l * 255 };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return {
+    r: hueToRgb(p, q, h + 1 / 3) * 255,
+    g: hueToRgb(p, q, h) * 255,
+    b: hueToRgb(p, q, h - 1 / 3) * 255,
+  };
+}
+
+function colorDistance(a, b) {
+  const first = hexToRgb(a);
+  const second = hexToRgb(b);
+  if (!first || !second) return 999;
+  return Math.hypot(first.r - second.r, first.g - second.g, first.b - second.b);
+}
+
+function stringHash(value) {
+  return [...String(value || '')].reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
+}
+
+function readableAccentColor(color) {
+  const rgb = hexToRgb(color);
+  if (!rgb) return '';
+  const hsl = rgbToHsl(rgb);
+  return rgbToHex(hslToRgb({
+    h: hsl.h,
+    s: Math.max(0.62, Math.min(0.95, hsl.s * 1.2 || 0.72)),
+    l: Math.max(0.48, Math.min(0.72, hsl.l < 0.35 ? 0.58 : hsl.l)),
+  }));
+}
+
+function deterministicThemeAccent(theme) {
+  const seed = stringHash(`${theme?.id || theme?.theme || theme?.slug || ''}:${theme?.name || theme?.fullName || ''}`);
+  return customAccentPalette[Math.abs(seed) % customAccentPalette.length];
+}
+
+function themeAccentValue(theme) {
+  return safeHexColor(theme?.accentColor || theme?.themeAccentColor, deterministicThemeAccent(theme));
+}
+
+function uniqueAccentColor(preferred, existingThemes = [], seed = '') {
+  const used = [
+    ...Object.values(qrThemePalettes).map((palette) => palette.accent),
+    ...existingThemes.map(themeAccentValue),
+  ].filter(Boolean);
+  const isFree = (color) => color && used.every((usedColor) => colorDistance(color, usedColor) > 58);
+  const prepared = readableAccentColor(preferred);
+  if (isFree(prepared)) return prepared;
+  const offset = Math.abs(stringHash(seed)) % customAccentPalette.length;
+  for (let index = 0; index < customAccentPalette.length; index += 1) {
+    const color = customAccentPalette[(offset + index) % customAccentPalette.length];
+    if (isFree(color)) return color;
+  }
+  for (let index = 0; index < 36; index += 1) {
+    const color = rgbToHex(hslToRgb({ h: ((offset * 37 + index * 31) % 360) / 360, s: 0.78, l: 0.6 }));
+    if (isFree(color)) return color;
+  }
+  return customAccentPalette[offset];
 }
 
 function roundedCanvasRect(context, x, y, width, height, radius) {
@@ -398,13 +516,14 @@ function drawOrderBrand(context, palette) {
   context.fillText('SCANME', 164, 113);
 }
 
-async function createOrderCardImage({ theme, themeImageUrl = '', fullName, role, fonts, copy, description, phone = '', email = '', socialLinks = [] }) {
+async function createOrderCardImage({ theme, themeImageUrl = '', themeAccentColor = '', fullName, role, fonts, copy, description, phone = '', email = '', socialLinks = [] }) {
   await document.fonts?.ready;
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
   canvas.height = 1350;
   const context = canvas.getContext('2d');
-  const palette = qrPalette(theme);
+  const basePalette = qrPalette(theme);
+  const palette = themeImageUrl && themeAccentColor ? { ...basePalette, accent: safeHexColor(themeAccentColor, basePalette.accent) } : basePalette;
   context.fillStyle = palette.dark;
   context.fillRect(0, 0, canvas.width, canvas.height);
   const themeImage = themeImageUrl || catalogThemeImages[theme];
@@ -713,11 +832,14 @@ async function renderCatalog() {
   const allCatalogThemes = [...themeOptions, ...(catalogCustomThemesCache || [])].filter((theme) => !settings.hiddenThemeIds.includes(theme.id));
   if (!allCatalogThemes.some((theme) => theme.id === catalogDraft.theme)) catalogDraft.theme = allCatalogThemes[0]?.id || 'lime';
   if (!plans[catalogDraft.plan]) catalogDraft.plan = Object.keys(plans)[0] || '';
-  const catalogThemes = allCatalogThemes.map((theme) => `
+  const catalogThemes = allCatalogThemes.map((theme) => {
+    const accentColor = theme.imageUrl ? themeAccentValue(theme) : '';
+    return `
     <label class="catalog-theme theme-option theme-option--${theme.imageUrl ? 'custom' : theme.id}">
-      <input type="radio" name="catalogTheme" value="${escapeHtml(theme.id)}" data-theme-url="${escapeHtml(theme.imageUrl || '')}" ${catalogDraft.theme === theme.id ? 'checked' : ''}>
-      <span${theme.imageUrl ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}')"` : ''}><i></i><b>${escapeHtml(theme.imageUrl ? theme.name : (language === 'ru' ? theme.name : (englishCatalogThemeNames[theme.id] || theme.name)))}</b></span>
-    </label>`).join('');
+      <input type="radio" name="catalogTheme" value="${escapeHtml(theme.id)}" data-theme-url="${escapeHtml(theme.imageUrl || '')}" data-theme-color="${escapeHtml(accentColor)}" ${catalogDraft.theme === theme.id ? 'checked' : ''}>
+      <span${theme.imageUrl ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}');--theme-accent:${escapeHtml(accentColor)}"` : ''}><i></i><b>${escapeHtml(theme.imageUrl ? theme.name : (language === 'ru' ? theme.name : (englishCatalogThemeNames[theme.id] || theme.name)))}</b></span>
+    </label>`;
+  }).join('');
   const catalogFontSelect = (name, label, selected) => `<label class="catalog-control"><span>${label}</span><select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${font.id === selected ? 'selected' : ''}>${font.name.split(' — ')[0]}</option>`).join('')}</select></label>`;
   app.innerHTML = `
     <main class="catalog-page">
@@ -897,7 +1019,9 @@ async function renderCatalog() {
     const selectedThemeInput = document.querySelector('[name="catalogTheme"]:checked');
     const selectedTheme = selectedThemeInput?.value || 'lime';
     const customThemeUrl = selectedThemeInput?.dataset.themeUrl || '';
+    const customThemeColor = selectedThemeInput?.dataset.themeColor || '';
     catalogDraft.theme = selectedTheme;
+    catalogDraft.themeAccentColor = customThemeColor;
     catalogDraft.fullName = nameInput.value;
     catalogDraft.role = roleInput.value;
     catalogDraft.phone = phoneInput.value.trim();
@@ -907,8 +1031,16 @@ async function renderCatalog() {
     allCatalogThemes.forEach((theme) => liveCard.classList.remove(`theme-${theme.id}`));
     liveCard.classList.toggle('theme-custom', Boolean(customThemeUrl));
     liveCard.classList.add(`theme-${selectedTheme}`);
-    if (customThemeUrl) liveCard.style.setProperty('--custom-theme-image', `url('${customThemeUrl}')`);
-    else liveCard.style.removeProperty('--custom-theme-image');
+    if (customThemeUrl) {
+      liveCard.style.setProperty('--custom-theme-image', `url('${customThemeUrl}')`);
+      const accentRgb = hexToRgb(safeHexColor(customThemeColor, themeAccentValue({ id: selectedTheme, name: selectedTheme }))) || hexToRgb('#d9ff6d');
+      liveCard.style.setProperty('--accent', safeHexColor(customThemeColor, '#d9ff6d'));
+      liveCard.style.setProperty('--accent-rgb', `${accentRgb.r},${accentRgb.g},${accentRgb.b}`);
+    } else {
+      liveCard.style.removeProperty('--custom-theme-image');
+      liveCard.style.removeProperty('--accent');
+      liveCard.style.removeProperty('--accent-rgb');
+    }
     liveCard.style.setProperty('--font-heading', fontStacks[fontFields.heading.value]);
     liveCard.style.setProperty('--font-secondary', fontStacks[fontFields.secondary.value]);
     liveCard.style.setProperty('--font-body', fontStacks[fontFields.body.value]);
@@ -1007,7 +1139,7 @@ async function renderCatalog() {
       const selectedPlan = plans[catalogDraft.plan];
       const selectedCardCopy = publicTranslations[cardLanguageField.value] || publicTranslations.en;
       const cardFile = await createOrderCardImage({
-        theme: selectedTheme, themeImageUrl: selectedThemeUrl, fullName, role: roleInput.value.trim() || t.demoRole,
+        theme: selectedTheme, themeImageUrl: selectedThemeUrl, themeAccentColor: catalogDraft.themeAccentColor, fullName, role: roleInput.value.trim() || t.demoRole,
         fonts: { heading: fontFields.heading.value, secondary: fontFields.secondary.value, body: fontFields.body.value, contact: fontFields.contact.value },
         copy: selectedCardCopy, description: catalogText(cardLanguageField.value).demoBio, phone: catalogDraft.phone, email: catalogDraft.email, socialLinks: catalogDraft.socialLinks,
       });
@@ -1068,6 +1200,7 @@ function defaultDesignSettings() {
     contactTextColor: '#7e858e',
     buttonTextColor: '#0b0d0f',
     serviceTextColor: '',
+    themeAccentColor: '',
     headingSize: '100',
     secondarySize: '100',
     bodySize: '100',
@@ -1114,8 +1247,9 @@ function publicationState(profile) {
 function themeCard(theme, selectedTheme) {
   const custom = Boolean(theme.imageUrl);
   const manageable = custom && Boolean(theme.fileName || theme.createdAt);
-  const style = custom ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}')"` : '';
-  return `<div class="theme-card-shell" data-theme-id="${escapeHtml(theme.id)}"><label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>${manageable ? `<button class="theme-manage-button" type="button" data-theme-id="${escapeHtml(theme.id)}" aria-label="Редактировать оформление ${escapeHtml(theme.name)}" title="Редактировать или удалить">${icons.edit}</button>` : ''}</div>`;
+  const accentColor = custom ? themeAccentValue(theme) : '';
+  const style = custom ? ` style="--theme-image:url('${escapeHtml(theme.imageUrl)}');--theme-accent:${escapeHtml(accentColor)}"` : '';
+  return `<div class="theme-card-shell" data-theme-id="${escapeHtml(theme.id)}"><label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}" data-theme-color="${escapeHtml(accentColor)}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>${manageable ? `<button class="theme-manage-button" type="button" data-theme-id="${escapeHtml(theme.id)}" aria-label="Редактировать оформление ${escapeHtml(theme.name)}" title="Редактировать или удалить">${icons.edit}</button>` : ''}</div>`;
 }
 
 function safeHexColor(value, fallback) {
@@ -1124,6 +1258,7 @@ function safeHexColor(value, fallback) {
 }
 
 function themeAccentColor(profile) {
+  if (profile?.themeImageUrl || profile?.imageUrl) return themeAccentValue(profile);
   return qrPalette(profile?.theme || 'lime').accent || '#c9ff38';
 }
 
@@ -1174,7 +1309,13 @@ function publicThemeDeclarations(profile) {
     `--contact-panel-opacity:${clampPhotoValue(profile.contactPanelOpacity, 0, 90, textPanelOpacity) / 100}`,
     `--contact-panel-blur:${clampPhotoValue(profile.contactPanelBlur, 0, 30, textPanelBlur)}px`,
   ];
-  if (profile.themeImageUrl) styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
+  if (profile.themeImageUrl) {
+    const accent = themeAccentColor(profile);
+    const accentRgb = hexToRgb(accent) || hexToRgb('#d9ff6d');
+    styles.push(`--custom-theme-image:url('${escapeHtml(profile.themeImageUrl)}')`);
+    styles.push(`--accent:${accent}`);
+    styles.push(`--accent-rgb:${accentRgb.r},${accentRgb.g},${accentRgb.b}`);
+  }
   return styles;
 }
 
@@ -1217,7 +1358,45 @@ async function resizeThemeImage(file) {
   ));
 }
 
-function showThemeUploadModal(onUploaded) {
+async function extractThemeAccentColor(file) {
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.addEventListener('load', () => resolve(element));
+      element.addEventListener('error', reject);
+      element.src = URL.createObjectURL(file);
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = 48;
+    canvas.height = 64;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+    URL.revokeObjectURL(image.src);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let best = null;
+    let bestScore = 0;
+    for (let index = 0; index < pixels.length; index += 16) {
+      const rgb = { r: pixels[index], g: pixels[index + 1], b: pixels[index + 2] };
+      const alpha = pixels[index + 3];
+      if (alpha < 200) continue;
+      const hsl = rgbToHsl(rgb);
+      if (hsl.l < 0.16 || hsl.l > 0.88 || hsl.s < 0.18) continue;
+      const score = hsl.s * (1 - Math.abs(hsl.l - 0.56)) * (0.8 + Math.min(0.2, hsl.s));
+      if (score > bestScore) {
+        best = rgb;
+        bestScore = score;
+      }
+    }
+    return best ? readableAccentColor(rgbToHex(best)) : '';
+  } catch {
+    return '';
+  }
+}
+
+function showThemeUploadModal(onUploaded, existingThemes = []) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   let previewObjectUrl = '';
@@ -1309,8 +1488,9 @@ function showThemeUploadModal(onUploaded) {
       }
       if (!source) throw new Error('Выберите файл или вставьте прямую ссылку на изображение.');
       const id = `custom-${slugify(name) || 'theme'}-${Date.now().toString(36)}`;
-      const blob = await resizeThemeImage(source);
-      const theme = await uploadTheme({ id, name, blob, token });
+      const [blob, extractedAccent] = await Promise.all([resizeThemeImage(source), extractThemeAccentColor(source)]);
+      const accentColor = uniqueAccentColor(extractedAccent, existingThemes, `${id}:${name}`);
+      const theme = await uploadTheme({ id, name, blob, token, accentColor });
       if (tokenInput instanceof HTMLInputElement) tokenInput.value = '';
       token = '';
       if (typeof onUploaded === 'function') onUploaded(theme);
@@ -1678,7 +1858,7 @@ async function renderEditor(slug) {
     console.warn('Custom themes are unavailable', error);
   }
   if (profile.themeImageUrl && !customThemes.some((theme) => theme.id === profile.theme)) {
-    customThemes.unshift({ id: profile.theme, name: 'Загруженное оформление', imageUrl: profile.themeImageUrl });
+    customThemes.unshift({ id: profile.theme, name: 'Загруженное оформление', imageUrl: profile.themeImageUrl, accentColor: profile.themeAccentColor });
   }
   const allThemes = [...themeOptions, ...customThemes];
   const input = (name, label, options = {}) => `
@@ -1906,6 +2086,7 @@ async function renderEditor(slug) {
     const selectedTheme = form.querySelector('[name="theme"]:checked');
     draft.theme = selectedTheme?.value || 'lime';
     draft.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+    draft.themeAccentColor = selectedTheme?.dataset.themeColor || '';
     if (!serviceTextColorTouched) draft.serviceTextColor = '';
     draft.socialLinks = socialLinks;
     return draft;
@@ -1986,7 +2167,7 @@ async function renderEditor(slug) {
       document.querySelector('#add-theme-button').before(option);
       option.querySelector('input').checked = true;
       syncCardPreview();
-    });
+    }, [...themeOptions, ...customThemes]);
   });
 
   document.querySelector('.theme-picker').addEventListener('click', (event) => {
@@ -2060,6 +2241,7 @@ async function renderEditor(slug) {
       payload.socialLinks = socialLinks.map((item) => ({ network: item.network, value: item.value }));
       const selectedTheme = form.querySelector('[name="theme"]:checked');
       payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+      payload.themeAccentColor = selectedTheme?.dataset.themeColor || '';
       if (!serviceTextColorTouched) payload.serviceTextColor = '';
       if (payload.accessMode === 'timed') {
         if (!payload.expiresAt) throw new Error('Укажите дату и время отключения.');
@@ -2098,7 +2280,7 @@ async function showQrModal(slug, redirectOnClose = false) {
   document.querySelector('.modal-backdrop')?.remove();
   const url = profileUrl(slug);
   const profile = await getProfile(slug).catch(() => null);
-  const palette = qrPalette(profile?.theme);
+  const palette = profileQrPalette(profile);
   const themeName = themeOptions.find((theme) => theme.id === profile?.theme)?.name || 'SCANME';
   const copy = profile ? publicCopy(profile) : publicTranslations.ru;
   const displayName = (profile?.contentType === 'announcement'

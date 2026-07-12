@@ -249,7 +249,7 @@ async function githubRequest(path, token, options = {}, allowNotFound = false) {
   return payload;
 }
 
-export async function uploadTheme({ id, name, blob, token }) {
+export async function uploadTheme({ id, name, blob, token, accentColor = '' }) {
   const now = new Date().toISOString();
   if (!isFirebaseConfigured) {
     const data = readLocal();
@@ -259,7 +259,7 @@ export async function uploadTheme({ id, name, blob, token }) {
       reader.readAsDataURL(blob);
     });
     data.__themes = data.__themes || {};
-    data.__themes[id] = { id, name, imageUrl, createdAt: now };
+    data.__themes[id] = { id, name, imageUrl, accentColor, createdAt: now };
     writeLocal(data);
     return data.__themes[id];
   }
@@ -274,7 +274,7 @@ export async function uploadTheme({ id, name, blob, token }) {
   const existingThemes = manifestFile?.content ? JSON.parse(base64ToText(manifestFile.content)) : [];
   const fileName = `${id}.webp`;
   const imageUrl = `https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_BRANCH}/themes/${fileName}`;
-  const theme = { id, name, imageUrl, fileName, createdAt: now };
+  const theme = { id, name, imageUrl, fileName, accentColor, createdAt: now };
   const normalizedName = name.trim().toLocaleLowerCase();
   const manifest = [theme, ...(Array.isArray(existingThemes) ? existingThemes.filter((item) => (
     item.id !== id && String(item.name || '').trim().toLocaleLowerCase() !== normalizedName
