@@ -1,5 +1,12 @@
 [
   {
+    "id": "custom-altrenngoering-2-mri2d9mq",
+    "name": "Altrenngoering 2",
+    "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-altrenngoering-2-mri2d9mq.webp",
+    "fileName": "custom-altrenngoering-2-mri2d9mq.webp",
+    "createdAt": "2026-07-12T17:25:02.754Z"
+  },
+  {
     "id": "custom-medical-mr5g5res",
     "name": "Medical",
     "imageUrl": "https://raw.githubusercontent.com/Unnamed00000/ScanMe/main/themes/custom-medical-mr5g5res.webp",
