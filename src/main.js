@@ -221,7 +221,7 @@ function wrapQrCardName(context, value, maxWidth, maxLines = 3) {
   return lines;
 }
 
-function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImage, fonts = {}, sizes = {} }) {
+function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImage, fonts = {}, sizes = {}, colors = {} }) {
   canvas.width = QR_CARD_WIDTH_PX;
   canvas.height = QR_CARD_HEIGHT_PX;
   const context = canvas.getContext('2d');
@@ -255,13 +255,13 @@ function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImag
   const contactScale = clampPhotoValue(sizes.contact, 70, 150, 100) / 100;
 
   context.textAlign = 'left';
-  context.fillStyle = palette.accent;
+  context.fillStyle = safeHexColor(colors.service, palette.accent);
   context.font = `700 ${Math.round(22 * secondaryScale)}px ${canvasFontFamily(fonts.secondary)}`;
   context.shadowColor = 'rgba(0,0,0,.75)';
   context.shadowBlur = 12;
   context.fillText(String(label || 'Digital business card').toUpperCase(), 620, 132);
 
-  context.fillStyle = '#fff';
+  context.fillStyle = safeHexColor(colors.heading, '#ffffff');
   let nameSize = Math.round(54 * headingScale);
   let lines = [];
   do {
@@ -276,16 +276,16 @@ function drawQrBankCard(canvas, qrCanvas, { name, label, palette, backgroundImag
 
   const rightCenter = 790;
   context.textAlign = 'center';
-  context.fillStyle = 'rgba(255,255,255,.58)';
+  context.fillStyle = safeHexColor(colors.contact, '#9ba1aa');
   context.font = `700 ${Math.round(18 * contactScale)}px ${canvasFontFamily(fonts.contact)}`;
   context.fillText('SCAN TO OPEN', rightCenter, 478);
-  context.fillStyle = palette.accent;
+  context.fillStyle = safeHexColor(colors.service, palette.accent);
   context.font = `700 ${Math.round(27 * secondaryScale)}px ${canvasFontFamily(fonts.secondary)}`;
   context.fillText('SCANME', rightCenter, 548);
   context.shadowBlur = 0;
 }
 
-function drawQrBankCardFallback(canvas, qrCanvas, { name, label, palette }) {
+function drawQrBankCardFallback(canvas, qrCanvas, { name, label, palette, colors = {} }) {
   canvas.width = QR_CARD_WIDTH_PX;
   canvas.height = QR_CARD_HEIGHT_PX;
   const context = canvas.getContext('2d');
@@ -296,18 +296,18 @@ function drawQrBankCardFallback(canvas, qrCanvas, { name, label, palette }) {
   context.fill();
   context.drawImage(qrCanvas, 66, 66, 482, 482);
   context.textAlign = 'left';
-  context.fillStyle = palette.accent;
+  context.fillStyle = safeHexColor(colors.service, palette.accent);
   context.font = '700 22px sans-serif';
   context.fillText(String(label || 'Digital business card').toUpperCase(), 620, 132, 320);
-  context.fillStyle = '#fff';
+  context.fillStyle = safeHexColor(colors.heading, '#ffffff');
   context.font = '700 42px sans-serif';
   const fallbackName = String(name || 'SCANME');
   context.fillText(fallbackName, 620, 235, 320);
   context.textAlign = 'center';
-  context.fillStyle = 'rgba(255,255,255,.65)';
+  context.fillStyle = safeHexColor(colors.contact, '#9ba1aa');
   context.font = '700 18px sans-serif';
   context.fillText('SCAN TO OPEN', 790, 478);
-  context.fillStyle = palette.accent;
+  context.fillStyle = safeHexColor(colors.service, palette.accent);
   context.font = '700 27px sans-serif';
   context.fillText('SCANME', 790, 548);
 }
@@ -1048,6 +1048,8 @@ const emptyProfile = () => ({
   announcementTitle: '', announcementDescription: '', announcementImageUrl: '', category: '',
   price: '', contactName: '', validUntil: '', ctaLabel: '',
   headingFont: 'unbounded', secondaryFont: 'manrope', bodyFont: 'manrope', contactFont: 'manrope',
+  textColor: '#ffffff', headingColor: '#ffffff', secondaryColor: '#c1c5cb', bodyColor: '#8c929b',
+  contactTextColor: '#7e858e', buttonTextColor: '#0b0d0f', serviceTextColor: '',
   headingSize: '100', secondarySize: '100', bodySize: '100', contactSize: '100', buttonSize: '100',
   textPanelOpacity: '32', textPanelBlur: '6',
   accessMode: 'unlimited', accessPrice: '', expiresAt: '', themeImageUrl: '',
@@ -1076,17 +1078,34 @@ function themeCard(theme, selectedTheme) {
   return `<div class="theme-card-shell" data-theme-id="${escapeHtml(theme.id)}"><label class="theme-option theme-option--${custom ? 'custom' : theme.id}"><input type="radio" name="theme" value="${escapeHtml(theme.id)}" ${selectedTheme === theme.id ? 'checked' : ''} data-theme-url="${escapeHtml(theme.imageUrl || '')}"><span${style}><i></i><b>${escapeHtml(theme.name)}</b></span></label>${manageable ? `<button class="theme-manage-button" type="button" data-theme-id="${escapeHtml(theme.id)}" aria-label="Редактировать оформление ${escapeHtml(theme.name)}" title="Редактировать или удалить">${icons.edit}</button>` : ''}</div>`;
 }
 
+function safeHexColor(value, fallback) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+}
+
+function themeAccentColor(profile) {
+  return qrPalette(profile?.theme || 'lime').accent || '#c9ff38';
+}
+
 function publicThemeDeclarations(profile) {
   const headingScale = clampPhotoValue(profile.headingSize, 70, 150, 100) / 100;
   const secondaryScale = clampPhotoValue(profile.secondarySize, 70, 150, 100) / 100;
   const bodyScale = clampPhotoValue(profile.bodySize, 70, 150, 100) / 100;
   const contactScale = clampPhotoValue(profile.contactSize, 70, 150, 100) / 100;
   const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
+  const baseTextColor = safeHexColor(profile.textColor, '#ffffff');
   const styles = [
     `--font-heading:${fontStacks[profile.headingFont] || fontStacks.unbounded}`,
     `--font-secondary:${fontStacks[profile.secondaryFont] || fontStacks.manrope}`,
     `--font-body:${fontStacks[profile.bodyFont] || fontStacks.manrope}`,
     `--font-contact:${fontStacks[profile.contactFont] || fontStacks.manrope}`,
+    `--text-color:${baseTextColor}`,
+    `--heading-text-color:${safeHexColor(profile.headingColor, baseTextColor)}`,
+    `--secondary-text-color:${safeHexColor(profile.secondaryColor, '#c1c5cb')}`,
+    `--body-text-color:${safeHexColor(profile.bodyColor, '#8c929b')}`,
+    `--contact-text-color:${safeHexColor(profile.contactTextColor, '#7e858e')}`,
+    `--button-text-color:${safeHexColor(profile.buttonTextColor, '#0b0d0f')}`,
+    `--service-text-color:${safeHexColor(profile.serviceTextColor, themeAccentColor(profile))}`,
     `--heading-size:clamp(${38 * headingScale}px,${7.5 * headingScale}vw,${86 * headingScale}px)`,
     `--heading-size-mobile:clamp(${34 * headingScale}px,${12 * headingScale}vw,${58 * headingScale}px)`,
     `--announcement-heading-size:clamp(${30 * headingScale}px,${5.6 * headingScale}vw,${66 * headingScale}px)`,
@@ -1624,6 +1643,11 @@ async function renderEditor(slug) {
       <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
       <small>${hint}</small>
     </label>`;
+  const colorInput = (name, label, fallback, hint) => `
+    <label class="field color-field"><span>${label}</span>
+      <input name="${name}" type="color" value="${escapeHtml(safeHexColor(profile[name], fallback))}">
+      <small>${hint}</small>
+    </label>`;
   const designRange = (name, label, { min, max, step = 1, suffix = '%' }) => `
     <label class="design-range"><span>${label}<b data-range-value="${name}">${escapeHtml(profile[name])}${suffix}</b></span>
       <input name="${name}" type="range" min="${min}" max="${max}" step="${step}" value="${escapeHtml(profile[name])}" data-range-suffix="${suffix}">
@@ -1696,6 +1720,21 @@ async function renderEditor(slug) {
               ${fontSelect('bodyFont', 'О себе или описание', 'Основной длинный текст')}
               ${fontSelect('contactFont', 'Контакты и кнопки', 'Нижний блок действий')}
             </div>
+            <div class="color-settings">
+              <div class="font-settings__heading"><b>Цвет текста</b><small>Можно выбрать общий цвет для всей карточки или настроить каждый текстовый блок отдельно.</small></div>
+              <div class="color-apply-all">
+                <label class="field color-field"><span>Один цвет для всего текста</span><input id="apply-all-text-color" type="color" value="${escapeHtml(safeHexColor(profile.textColor, '#ffffff'))}"><small>При выборе этот цвет сразу поставится во все текстовые блоки ниже.</small></label>
+              </div>
+              <div class="fields-grid">
+                ${colorInput('textColor', 'Базовый цвет текста', '#ffffff', 'Общий цвет по умолчанию')}
+                ${colorInput('headingColor', 'Имя или заголовок', safeHexColor(profile.textColor, '#ffffff'), 'Крупный главный текст')}
+                ${colorInput('secondaryColor', 'Должность, цена и подписи', '#c1c5cb', 'Второстепенные строки')}
+                ${colorInput('bodyColor', 'Описание', '#8c929b', 'О себе или текст объявления')}
+                ${colorInput('contactTextColor', 'Контакты', '#7e858e', 'Подписи телефонов, email и соцсетей')}
+                ${colorInput('buttonTextColor', 'Текст кнопок', '#0b0d0f', 'Например, «Сохранить контакт»')}
+                ${colorInput('serviceTextColor', 'Акцентные надписи', themeAccentColor(profile), 'SCANME, Digital business card, категории')}
+              </div>
+            </div>
             <div class="design-controls">
               ${designRange('headingSize', 'Размер имени или заголовка', { min: 70, max: 150 })}
               ${designRange('secondarySize', 'Размер должности и подписей', { min: 70, max: 150 })}
@@ -1750,6 +1789,19 @@ async function renderEditor(slug) {
 
   const form = document.querySelector('#profile-form');
   const cardPreview = form.querySelector('#editor-card-preview');
+  const applyAllTextColor = form.querySelector('#apply-all-text-color');
+  const serviceTextColorField = form.elements.serviceTextColor;
+  let serviceTextColorTouched = Boolean(profile.serviceTextColor);
+  const textColorFields = ['textColor', 'headingColor', 'secondaryColor', 'bodyColor', 'contactTextColor', 'buttonTextColor', 'serviceTextColor'];
+  applyAllTextColor?.addEventListener('input', () => {
+    textColorFields.forEach((name) => {
+      const field = form.elements[name];
+      if (field) field.value = applyAllTextColor.value;
+    });
+    serviceTextColorTouched = true;
+    syncCardPreview();
+  });
+  serviceTextColorField?.addEventListener('input', () => { serviceTextColorTouched = true; });
   form.querySelectorAll('.design-range input[type="range"]').forEach((range) => {
     const output = form.querySelector(`[data-range-value="${range.name}"]`);
     const sync = () => { if (output) output.textContent = `${range.value}${range.dataset.rangeSuffix || ''}`; };
@@ -1773,6 +1825,7 @@ async function renderEditor(slug) {
     const selectedTheme = form.querySelector('[name="theme"]:checked');
     draft.theme = selectedTheme?.value || 'lime';
     draft.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+    if (!serviceTextColorTouched) draft.serviceTextColor = '';
     draft.socialLinks = socialLinks;
     return draft;
   };
@@ -1927,6 +1980,7 @@ async function renderEditor(slug) {
       payload.socialLinks = socialLinks.map((item) => ({ network: item.network, value: item.value }));
       const selectedTheme = form.querySelector('[name="theme"]:checked');
       payload.themeImageUrl = selectedTheme?.dataset.themeUrl || '';
+      if (!serviceTextColorTouched) payload.serviceTextColor = '';
       if (payload.accessMode === 'timed') {
         if (!payload.expiresAt) throw new Error('Укажите дату и время отключения.');
         const expiration = new Date(payload.expiresAt);
@@ -1981,6 +2035,11 @@ async function showQrModal(slug, redirectOnClose = false) {
     secondary: profile?.secondarySize,
     contact: profile?.contactSize,
   };
+  const colors = {
+    heading: profile?.headingColor,
+    contact: profile?.contactTextColor,
+    service: profile?.serviceTextColor || themeAccentColor(profile),
+  };
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.style.setProperty('--qr-dark', palette.dark);
@@ -2017,10 +2076,10 @@ async function showQrModal(slug, redirectOnClose = false) {
       }
     }
     try {
-      drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes });
+      drawQrBankCard(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, backgroundImage, fonts, sizes, colors });
     } catch (renderError) {
       console.warn('Primary QR card renderer failed; using fallback', renderError);
-      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
+      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, colors });
     }
     status.remove();
     printButton.disabled = false;
@@ -2029,7 +2088,7 @@ async function showQrModal(slug, redirectOnClose = false) {
     console.error('QR card rendering failed', error);
     try {
       if (!qrCanvas.width || !qrCanvas.height) throw error;
-      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette });
+      drawQrBankCardFallback(canvas, qrCanvas, { name: displayName, label: copy.digitalCard, palette, colors });
       status.remove();
       printButton.disabled = false;
       downloadButton.disabled = false;
