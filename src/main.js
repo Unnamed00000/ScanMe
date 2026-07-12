@@ -1271,6 +1271,13 @@ function defaultDesignSettings() {
     contactTextColor: '#7e858e',
     buttonTextColor: '#0b0d0f',
     serviceTextColor: '',
+    textShadowColor: '#000000',
+    headingShadowColor: '#000000',
+    secondaryShadowColor: '#000000',
+    bodyShadowColor: '#000000',
+    contactTextShadowColor: '#000000',
+    buttonTextShadowColor: '#000000',
+    serviceTextShadowColor: '#000000',
     themeAccentColor: '',
     headingSize: '100',
     secondarySize: '100',
@@ -1328,6 +1335,11 @@ function safeHexColor(value, fallback) {
   return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
 }
 
+function textShadowCssColor(value, fallback = '#000000', alpha = 0.72) {
+  const rgb = hexToRgb(safeHexColor(value, fallback)) || hexToRgb(fallback) || { r: 0, g: 0, b: 0 };
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
 function themeAccentColor(profile) {
   if (profile?.themeImageUrl || profile?.imageUrl) return themeAccentValue(profile);
   return qrPalette(profile?.theme || 'lime').accent || '#c9ff38';
@@ -1340,6 +1352,7 @@ function publicThemeDeclarations(profile) {
   const contactScale = clampPhotoValue(profile.contactSize, 70, 150, 100) / 100;
   const buttonScale = clampPhotoValue(profile.buttonSize, 70, 150, 100) / 100;
   const baseTextColor = safeHexColor(profile.textColor, '#ffffff');
+  const baseTextShadowColor = safeHexColor(profile.textShadowColor, '#000000');
   const textPanelOpacity = clampPhotoValue(profile.textPanelOpacity, 0, 90, 32);
   const textPanelBlur = clampPhotoValue(profile.textPanelBlur, 0, 30, 6);
   const styles = [
@@ -1354,6 +1367,13 @@ function publicThemeDeclarations(profile) {
     `--contact-text-color:${safeHexColor(profile.contactTextColor, '#7e858e')}`,
     `--button-text-color:${safeHexColor(profile.buttonTextColor, '#0b0d0f')}`,
     `--service-text-color:${safeHexColor(profile.serviceTextColor, themeAccentColor(profile))}`,
+    `--text-shadow-color:${textShadowCssColor(profile.textShadowColor, '#000000')}`,
+    `--heading-text-shadow-color:${textShadowCssColor(profile.headingShadowColor, baseTextShadowColor)}`,
+    `--secondary-text-shadow-color:${textShadowCssColor(profile.secondaryShadowColor, baseTextShadowColor)}`,
+    `--body-text-shadow-color:${textShadowCssColor(profile.bodyShadowColor, baseTextShadowColor)}`,
+    `--contact-text-shadow-color:${textShadowCssColor(profile.contactTextShadowColor, baseTextShadowColor)}`,
+    `--button-text-shadow-color:${textShadowCssColor(profile.buttonTextShadowColor, baseTextShadowColor, 0.52)}`,
+    `--service-text-shadow-color:${textShadowCssColor(profile.serviceTextShadowColor, baseTextShadowColor)}`,
     `--heading-size:clamp(${38 * headingScale}px,${7.5 * headingScale}vw,${86 * headingScale}px)`,
     `--heading-size-mobile:clamp(${34 * headingScale}px,${12 * headingScale}vw,${58 * headingScale}px)`,
     `--announcement-heading-size:clamp(${30 * headingScale}px,${5.6 * headingScale}vw,${66 * headingScale}px)`,
@@ -1947,11 +1967,26 @@ async function renderEditor(slug) {
       <select name="${name}">${fontOptions.map((font) => `<option value="${font.id}" ${profile[name] === font.id ? 'selected' : ''}>${font.name}</option>`).join('')}</select>
       <small>${hint}</small>
     </label>`;
+  const shadowFieldForColor = {
+    textColor: 'textShadowColor',
+    headingColor: 'headingShadowColor',
+    secondaryColor: 'secondaryShadowColor',
+    bodyColor: 'bodyShadowColor',
+    contactTextColor: 'contactTextShadowColor',
+    buttonTextColor: 'buttonTextShadowColor',
+    serviceTextColor: 'serviceTextShadowColor',
+  };
   const colorInput = (name, label, fallback, hint) => `
-    <label class="field color-field"><span>${label}</span>
-      <input name="${name}" type="color" value="${escapeHtml(safeHexColor(profile[name], fallback))}">
-      <small>${hint}</small>
-    </label>`;
+    <div class="text-color-pair">
+      <label class="field color-field"><span>${label}</span>
+        <input name="${name}" type="color" value="${escapeHtml(safeHexColor(profile[name], fallback))}">
+        <small>${hint}</small>
+      </label>
+      <label class="field color-field color-field--shadow"><span>Тень</span>
+        <input name="${shadowFieldForColor[name]}" type="color" value="${escapeHtml(safeHexColor(profile[shadowFieldForColor[name]], '#000000'))}">
+        <small>Цвет тени этого текста</small>
+      </label>
+    </div>`;
   const designRange = (name, label, { min, max, step = 1, suffix = '%' }) => `
     <label class="design-range"><span>${label}<b data-range-value="${name}">${escapeHtml(profile[name])}${suffix}</b></span>
       <input name="${name}" type="range" min="${min}" max="${max}" step="${step}" value="${escapeHtml(profile[name])}" data-range-suffix="${suffix}">
@@ -1964,7 +1999,14 @@ async function renderEditor(slug) {
   app.innerHTML = adminShell(`
     <main class="admin-content editor-page">
       <div class="page-heading page-heading--editor"><div><a class="back-link" href="#/admin">${icons.back} Все публикации</a><h1>${isNew ? 'Новая публикация' : 'Редактирование'}</h1><p>${isNew ? 'Выберите формат и заполните данные — QR-код появится после сохранения.' : `Адрес /${escapeHtml(profile.slug)}`}</p></div><div class="heading-actions">${!isNew ? `<button class="button button--danger" id="delete-button">${icons.trash} Удалить</button>` : ''}<button class="button button--primary" type="submit" form="profile-form">${icons.save} Сохранить</button></div></div>
-      <form id="profile-form" class="editor-grid">
+      <form id="profile-form" class="editor-grid editor-grid--with-preview">
+        <aside class="editor-preview-column">
+          <div class="editor-preview-stage">
+            <div class="editor-preview-stage__heading"><b>Предпросмотр всей страницы</b><small>Остаётся видимым при прокрутке</small></div>
+            <main class="public-card editor-phone-preview" id="editor-card-preview"></main>
+          </div>
+        </aside>
+        <div class="editor-form-column">
         <section class="form-card format-card">
           <div class="section-heading"><span>00</span><div><h2>Что создаём?</h2><p>У каждого формата будет отдельная полноэкранная страница и QR-код.</p></div></div>
           <div class="content-type-picker">
@@ -2028,6 +2070,7 @@ async function renderEditor(slug) {
               <div class="font-settings__heading"><b>Цвет текста</b><small>Можно выбрать общий цвет для всей карточки или настроить каждый текстовый блок отдельно.</small></div>
               <div class="color-apply-all">
                 <label class="field color-field"><span>Один цвет для всего текста</span><input id="apply-all-text-color" type="color" value="${escapeHtml(safeHexColor(profile.textColor, '#ffffff'))}"><small>При выборе этот цвет сразу поставится во все текстовые блоки ниже.</small></label>
+                <label class="field color-field color-field--shadow"><span>Одна тень для всего текста</span><input id="apply-all-text-shadow" type="color" value="${escapeHtml(safeHexColor(profile.textShadowColor, '#000000'))}"><small>При выборе эта тень поставится во все текстовые блоки ниже.</small></label>
               </div>
               <div class="fields-grid">
                 ${colorInput('textColor', 'Базовый цвет текста', '#ffffff', 'Общий цвет по умолчанию')}
@@ -2036,7 +2079,7 @@ async function renderEditor(slug) {
                 ${colorInput('bodyColor', 'Описание', '#8c929b', 'О себе или текст объявления')}
                 ${colorInput('contactTextColor', 'Контакты', '#7e858e', 'Подписи телефонов, email и соцсетей')}
                 ${colorInput('buttonTextColor', 'Текст кнопок', '#0b0d0f', 'Например, «Сохранить контакт»')}
-                ${colorInput('serviceTextColor', 'Акцентные надписи', themeAccentColor(profile), 'SCANME, Digital business card, категории')}
+                ${colorInput('serviceTextColor', 'Акцентные надписи', themeAccentColor(profile), 'Digital business card, категории и служебные подписи')}
               </div>
             </div>
             <div class="design-controls">
@@ -2053,10 +2096,6 @@ async function renderEditor(slug) {
               ${designRange('contactPanelBlur', 'Размытие контактов и кнопки', { min: 0, max: 30, suffix: ' px' })}
             </div>
             <button class="button button--ghost design-reset-button" id="reset-design-button" type="button">${icons.refresh || icons.back} Сбросить оформление</button>
-            <div class="editor-preview-stage">
-              <div class="editor-preview-stage__heading"><b>Предпросмотр всей страницы</b><small>Так визитка будет выглядеть на телефоне</small></div>
-              <main class="public-card editor-phone-preview" id="editor-card-preview"></main>
-            </div>
           </div>
           <div class="theme-picker">
             ${allThemes.map((theme) => themeCard(theme, selectedThemeId)).join('')}
@@ -2075,6 +2114,7 @@ async function renderEditor(slug) {
           </div>
           <label class="publish-toggle"><input type="checkbox" name="published" ${profile.published ? 'checked' : ''}><span></span><div><b>Опубликовать</b><small>Страница будет доступна по ссылке и QR-коду</small></div></label>
         </section>
+        </div>
       </form>
     </main>`, isNew ? 'new' : 'profiles');
   bindAdminShell();
@@ -2099,15 +2139,24 @@ async function renderEditor(slug) {
   const form = document.querySelector('#profile-form');
   const cardPreview = form.querySelector('#editor-card-preview');
   const applyAllTextColor = form.querySelector('#apply-all-text-color');
+  const applyAllTextShadow = form.querySelector('#apply-all-text-shadow');
   const serviceTextColorField = form.elements.serviceTextColor;
   let serviceTextColorTouched = Boolean(profile.serviceTextColor);
   const textColorFields = ['textColor', 'headingColor', 'secondaryColor', 'bodyColor', 'contactTextColor', 'buttonTextColor', 'serviceTextColor'];
+  const textShadowFields = ['textShadowColor', 'headingShadowColor', 'secondaryShadowColor', 'bodyShadowColor', 'contactTextShadowColor', 'buttonTextShadowColor', 'serviceTextShadowColor'];
   applyAllTextColor?.addEventListener('input', () => {
     textColorFields.forEach((name) => {
       const field = form.elements[name];
       if (field) field.value = applyAllTextColor.value;
     });
     serviceTextColorTouched = true;
+    syncCardPreview();
+  });
+  applyAllTextShadow?.addEventListener('input', () => {
+    textShadowFields.forEach((name) => {
+      const field = form.elements[name];
+      if (field) field.value = applyAllTextShadow.value;
+    });
     syncCardPreview();
   });
   serviceTextColorField?.addEventListener('input', () => { serviceTextColorTouched = true; });
@@ -2141,6 +2190,7 @@ async function renderEditor(slug) {
       setDesignField(name, value);
     });
     if (applyAllTextColor) applyAllTextColor.value = defaults.textColor;
+    if (applyAllTextShadow) applyAllTextShadow.value = defaults.textShadowColor;
     serviceTextColorTouched = false;
     syncCardPreview();
     toast('Оформление сброшено');
